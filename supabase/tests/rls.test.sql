@@ -59,15 +59,26 @@ set role authenticated;
 insert into public.goals (title, kind, target, current) values ('Semesterkassa', 'amount', 30000, 5000);
 insert into public.tasks (title, assignee) values ('Dammsuga', :'cA') returning id as task_child \gset
 insert into public.tasks (title, assignee) values ('Tvätta', :'pA2') returning id as task_parent \gset
-insert into public.budget_categories (name, monthly_limit) values ('Mat', 8000);
+insert into public.budget_categories (name, monthly_limit) values ('Mat', 8000) returning id as cat \gset
+insert into public.transactions (category_id, amount, note) values (:'cat', 450, 'ICA');
+insert into public.projects (title, budget, owner) values ('Nytt badrum', 180000, :'pA2') returning id as proj \gset
+insert into public.tasks (title, recurrence, project_id) values ('Kakla', 'none', :'proj');
+insert into public.maintenance_items (title, interval_days, owner) values ('Byta filter', 180, :'cA');
+insert into public.goals (title, kind, target, owner) values ('Cykel', 'amount', 3500, :'cA');
 select tests.expect_count('select * from public.profiles', 3, 'förälder ser hela familjen');
 reset role;
 
 -- Barnet
 select set_config('request.jwt.claim.sub', :'cA', false);
 set role authenticated;
-select tests.expect_count('select * from public.goals', 1, 'barn ser familjens mål');
+select tests.expect_count('select * from public.goals', 2, 'barn ser familjens mål');
 select tests.expect_count('select * from public.budget_categories', 0, 'barn ser inte budget');
+select tests.expect_count('select * from public.transactions', 0, 'barn ser inte utgifter');
+select tests.expect_error($$insert into public.transactions (amount) values (1)$$, 'barn lägger till utgift');
+select tests.expect_count('select * from public.projects', 1, 'barn ser projekt');
+select tests.expect_count('select * from public.maintenance_items where owner = auth.uid()', 1, 'barn ser sitt underhåll');
+select tests.expect_count('update public.maintenance_items set last_done = current_date returning 1', 0, 'barn ändrar underhåll');
+select tests.expect_count('update public.projects set spent = 1 returning 1', 0, 'barn ändrar projekt');
 select tests.expect_error($$insert into public.goals (title, kind) values ('Glass', 'tasks')$$, 'barn skapar mål');
 select tests.expect_count('update public.goals set current = 99999 returning 1', 0, 'barn ändrar mål');
 insert into public.task_completions (task_id, period) values (:'task_child', '2026-W40');
@@ -84,6 +95,8 @@ set role authenticated;
 select tests.expect_count('select * from public.goals', 0, 'familj B ser inte A:s mål');
 select tests.expect_count('select * from public.profiles', 1, 'familj B ser bara sig själv');
 select tests.expect_count('select * from public.tasks', 0, 'familj B ser inte A:s sysslor');
+select tests.expect_count('select * from public.projects', 0, 'familj B ser inte A:s projekt');
+select tests.expect_count('select * from public.maintenance_items', 0, 'familj B ser inte A:s underhåll');
 select tests.expect_error(format($$insert into public.tasks (family_id, title) values (%L, 'Intrång')$$, :'fam_a'), 'familj B skriver till A');
 select tests.expect_error(format($$insert into public.task_completions (task_id, period) values (%L, 'x')$$, :'task_child'), 'familj B bockar av A:s syssla');
 reset role;

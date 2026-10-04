@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { periodKey } from "@/lib/dates";
+import { periodKey, today } from "@/lib/dates";
 import { getSession, getUser, requireParent } from "@/lib/session";
 import { childEmail, childPassword } from "@/lib/supabase/config";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import type { ChecklistItem, FamilyEvent, Recurrence } from "@/lib/types";
+import type { ChecklistItem, FamilyEvent, ProjectStatus, Recurrence } from "@/lib/types";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -148,6 +148,7 @@ export async function createGoal(_: FormState, form: FormData): Promise<FormStat
     current: kind === "amount" ? optNum(form, "current") ?? 0 : 0,
     unit: str(form, "unit") || "kr",
     due_date: optStr(form, "due_date"),
+    owner: optStr(form, "owner"),
   });
   if (error) return fail(error);
   refresh();
@@ -190,12 +191,13 @@ export async function createTask(_: FormState, form: FormData): Promise<FormStat
     recurrence: RECURRENCES.includes(recurrence) ? recurrence : "weekly",
     assignee: optStr(form, "assignee"),
     goal_id: optStr(form, "goal_id"),
+    project_id: optStr(form, "project_id"),
     due_date: optStr(form, "due_date"),
     points: optNum(form, "points") ?? 1,
   });
   if (error) return fail(error);
   refresh();
-  return { ok: "Sysslan är tillagd" };
+  return { ok: "Tillagd" };
 }
 
 export async function toggleTask(form: FormData) {
@@ -291,4 +293,129 @@ export async function deleteEvent(form: FormData) {
   await supabase.from("events").delete().eq("id", str(form, "id"));
   refresh();
   redirect("/kalender");
+}
+
+// Ansvar -------------------------------------------------------------------------------
+
+const OWNED = ["goals", "projects", "maintenance_items"] as const;
+
+export async function setOwner(form: FormData) {
+  const { supabase } = await requireParent();
+  const table = str(form, "table") as (typeof OWNED)[number];
+  if (!OWNED.includes(table)) return;
+  await supabase.from(table).update({ owner: optStr(form, "owner") }).eq("id", str(form, "id"));
+  refresh();
+}
+
+// Hemmet: projekt -------------------------------------------------------------------
+
+const STATUSES: ProjectStatus[] = ["idea", "planned", "ongoing", "done"];
+
+export async function createProject(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const status = str(form, "status") as ProjectStatus;
+  const { error } = await supabase.from("projects").insert({
+    title: str(form, "title"),
+    status: STATUSES.includes(status) ? status : "planned",
+    budget: optNum(form, "budget"),
+    owner: optStr(form, "owner"),
+  });
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Projektet är skapat" };
+}
+
+export async function setProjectStatus(form: FormData) {
+  const { supabase } = await requireParent();
+  const status = str(form, "status") as ProjectStatus;
+  if (!STATUSES.includes(status)) return;
+  await supabase.from("projects").update({ status }).eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function addProjectCost(form: FormData) {
+  const { supabase } = await requireParent();
+  const id = str(form, "id");
+  const amount = optNum(form, "amount");
+  if (!amount) return;
+  const { data } = await supabase.from("projects").select("spent").eq("id", id).single();
+  if (!data) return;
+  await supabase.from("projects").update({ spent: Number(data.spent) + amount }).eq("id", id);
+  refresh();
+}
+
+export async function deleteProject(form: FormData) {
+  const { supabase } = await requireParent();
+  const id = str(form, "id");
+  await supabase.from("tasks").delete().eq("project_id", id);
+  await supabase.from("projects").delete().eq("id", id);
+  refresh();
+}
+
+// Hemmet: underhåll -----------------------------------------------------------------
+
+export async function createMaintenance(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const interval = optNum(form, "interval_days");
+  if (!interval || interval < 1) return { error: "Ange hur ofta, i dagar" };
+  const { error } = await supabase.from("maintenance_items").insert({
+    title: str(form, "title"),
+    interval_days: Math.round(interval),
+    last_done: optStr(form, "last_done"),
+    owner: optStr(form, "owner"),
+  });
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Tillagt" };
+}
+
+export async function markMaintenanceDone(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("maintenance_items").update({ last_done: today() }).eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function deleteMaintenance(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("maintenance_items").delete().eq("id", str(form, "id"));
+  refresh();
+}
+
+// Budget -------------------------------------------------------------------------------
+
+export async function createCategory(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const limit = optNum(form, "monthly_limit");
+  if (limit === null || limit < 0) return { error: "Ange en månadsbudget" };
+  const { error } = await supabase.from("budget_categories").insert({ name: str(form, "name"), monthly_limit: limit });
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Kategorin är tillagd" };
+}
+
+export async function deleteCategory(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("budget_categories").delete().eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function addTransaction(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const amount = optNum(form, "amount");
+  if (!amount || amount <= 0) return { error: "Ange ett belopp" };
+  const { error } = await supabase.from("transactions").insert({
+    amount,
+    category_id: optStr(form, "category_id"),
+    occurred_on: str(form, "occurred_on") || today(),
+    note: optStr(form, "note"),
+  });
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Utgiften är sparad" };
+}
+
+export async function deleteTransaction(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("transactions").delete().eq("id", str(form, "id"));
+  refresh();
 }

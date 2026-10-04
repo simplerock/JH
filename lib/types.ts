@@ -23,6 +23,7 @@ export type Goal = {
   unit: string;
   due_date: string | null;
   archived: boolean;
+  owner: string | null;
 };
 
 export type Task = {
@@ -32,6 +33,7 @@ export type Task = {
   recurrence: Recurrence;
   assignee: string | null;
   goal_id: string | null;
+  project_id: string | null;
   due_date: string | null;
   points: number;
 };
@@ -51,3 +53,28 @@ export type FamilyEvent = {
   checklist: ChecklistItem[];
   goal_id: string | null;
 };
+
+export type ProjectStatus = "idea" | "planned" | "ongoing" | "done";
+
+export type Project = {
+  id: string;
+  title: string;
+  status: ProjectStatus;
+  budget: number | null;
+  spent: number;
+  owner: string | null;
+  notes: string | null;
+};
+
+export type MaintenanceItem = {
+  id: string;
+  title: string;
+  interval_days: number;
+  last_done: string | null;
+  owner: string | null;
+  notes: string | null;
+};
+
+export type BudgetCategory = { id: string; name: string; monthly_limit: number };
+
+export type Transaction = { id: string; category_id: string | null; amount: number; occurred_on: string; note: string | null };

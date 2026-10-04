@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, MapPin, Palmtree, Trophy } from "lucide-react";
 import { createEvent } from "@/app/actions";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { PageHeader } from "@/components/PageHeader";
-import { ProgressBar } from "@/components/ProgressBar";
+import { Empty, Section } from "@/components/Section";
 import { daysBetween, formatRange, today } from "@/lib/dates";
 import { countdown } from "@/lib/format";
-import { checklistProgress } from "@/lib/progress";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import type { FamilyEvent } from "@/lib/types";
 
-const ICONS = { vacation: Palmtree, event: CalendarDays, activity: Trophy };
+const KIND = { vacation: "Semester", event: "Händelse", activity: "Aktivitet" };
 
 function monthLabel(iso: string) {
   const [y, m] = iso.split("-").map(Number);
@@ -27,8 +25,8 @@ export default async function CalendarPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Kalender" subtitle="Semestrar, händelser och aktiviteter." />
+    <>
+      <PageHeader title="Kalender" back={{ href: "/mer", label: "Mer" }} />
 
       {isParent && (
         <AddPanel title="Lägg till">
@@ -79,36 +77,25 @@ export default async function CalendarPage() {
         </AddPanel>
       )}
 
-      {events.length === 0 && <p className="card text-center text-muted">Inget inplanerat framåt.</p>}
+      {events.length === 0 && (
+        <Section>
+          <Empty>Inget inplanerat framåt.</Empty>
+        </Section>
+      )}
 
       {[...months.entries()].map(([month, list]) => (
-        <section key={month}>
-          <h2 className="mb-2 text-sm font-semibold capitalize text-muted">{monthLabel(month)}</h2>
-          <div className="space-y-2">
-            {list.map((e) => {
-              const Icon = ICONS[e.kind];
-              const check = checklistProgress(e.checklist);
-              return (
-                <Link key={e.id} href={`/kalender/${e.id}`} className="card flex items-center gap-3">
-                  <Icon className={e.kind === "vacation" ? "text-accent" : "text-muted"} size={24} />
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="truncate font-semibold">{e.title}</p>
-                      <p className="shrink-0 text-xs text-muted">{countdown(daysBetween(d, e.start_date))}</p>
-                    </div>
-                    <p className="flex items-center gap-1 text-sm text-muted">
-                      {formatRange(e.start_date, e.end_date)}
-                      {e.location && <><MapPin size={12} className="ml-1" />{e.location}</>}
-                    </p>
-                    {check.total > 0 && <ProgressBar size="sm" ratio={check.ratio} />}
-                  </div>
-                  <ChevronRight className="text-muted" size={18} />
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        <Section key={month} title={monthLabel(month)}>
+          {list.map((e) => (
+            <Link key={e.id} href={`/kalender/${e.id}`} className="flex min-h-14 items-center gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{e.title}</p>
+                <p className="text-[13px] text-muted">{KIND[e.kind]} · {formatRange(e.start_date, e.end_date)}{e.location ? ` · ${e.location}` : ""}</p>
+              </div>
+              <span className="shrink-0 text-sm text-muted">{countdown(daysBetween(d, e.start_date))}</span>
+            </Link>
+          ))}
+        </Section>
       ))}
-    </div>
+    </>
   );
 }

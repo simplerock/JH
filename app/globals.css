@@ -5,11 +5,11 @@
   --card: #ffffff;
   --ink: #1d1f1e;
   --muted: #6b6f6c;
-  --line: #e6e2d9;
+  --line: #ebe7df;
   --accent: #2f6f55;
   --accent-ink: #ffffff;
   --accent-soft: #e3efe8;
-  --track: #ece8df;
+  --track: #ebe7df;
   --warn: #c2552d;
   --warn-soft: #f8e6dd;
 }
@@ -56,7 +56,20 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-line bg-card p-4;
+    @apply rounded-2xl bg-card p-4;
+  }
+  /* Grupperad lista: en yta, rader med tunna avdelare. */
+  .group {
+    @apply rounded-2xl bg-card px-4;
+  }
+  .group > * + * {
+    @apply border-t border-line;
+  }
+  .section-title {
+    @apply mb-2 flex items-baseline justify-between px-1 text-[13px] font-semibold uppercase tracking-wider text-muted;
+  }
+  .section-title > span {
+    @apply text-sm font-medium normal-case tracking-normal;
   }
   .input {
     @apply w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-base text-ink outline-none placeholder:text-muted focus:border-accent;
@@ -68,7 +81,7 @@ body {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-accent-ink transition active:scale-[0.98] disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium text-ink transition active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-track px-3 py-2 text-sm font-medium text-ink transition active:scale-[0.98];
   }
   .chip {
     @apply inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent;

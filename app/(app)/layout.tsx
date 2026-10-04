@@ -5,7 +5,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await getSession();
   return (
     <>
-      <main className="mx-auto max-w-xl px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))]">{children}</main>
+      <main className="mx-auto flex max-w-xl flex-col gap-7 px-4 pb-28 pt-[max(1.75rem,env(safe-area-inset-top))]">{children}</main>
       <BottomNav />
     </>
   );

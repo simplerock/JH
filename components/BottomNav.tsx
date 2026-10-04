@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Home, Target, Users, Sparkles } from "lucide-react";
+import { Check, Ellipsis, Home, Hammer, Target } from "lucide-react";
 
 const items = [
-  { href: "/", label: "Hem", icon: Home },
-  { href: "/mal", label: "Mål", icon: Target },
-  { href: "/rutiner", label: "Rutiner", icon: Sparkles },
-  { href: "/kalender", label: "Kalender", icon: CalendarDays },
-  { href: "/familj", label: "Familj", icon: Users },
+  { href: "/", label: "Hem", icon: Home, match: ["/"] },
+  { href: "/mal", label: "Mål", icon: Target, match: ["/mal"] },
+  { href: "/rutiner", label: "Rutiner", icon: Check, match: ["/rutiner"] },
+  { href: "/hemmet", label: "Hemmet", icon: Hammer, match: ["/hemmet"] },
+  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj"] },
 ];
 
 export function BottomNav() {
@@ -17,16 +17,16 @@ export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <ul className="mx-auto flex max-w-xl">
-        {items.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? path === "/" : path.startsWith(href);
+        {items.map(({ href, label, icon: Icon, match }) => {
+          const active = href === "/" ? path === "/" : match.some((m) => path.startsWith(m));
           return (
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
+                className={`flex flex-col items-center gap-0.5 pb-3 pt-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
+                <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
                 {label}
               </Link>
             </li>

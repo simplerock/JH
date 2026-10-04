@@ -14,10 +14,10 @@ export default async function FamilyPage() {
   const routines = tasks.filter((t) => t.recurrence !== "none");
 
   return (
-    <div className="space-y-4">
-      <PageHeader title={family.name} subtitle={`${members.length} i familjen`} />
+    <>
+      <PageHeader title={family.name} back={{ href: "/mer", label: "Mer" }} />
 
-      <section className="card">
+      <section className="group">
         <ul className="divide-y divide-line">
           {members.map((m) => {
             const p = taskProgress(routines.filter((t) => t.assignee === m.id), completions);
@@ -29,7 +29,7 @@ export default async function FamilyPage() {
                     {m.display_name} {m.id === profile.id && <span className="text-sm font-normal text-muted">(du)</span>}
                   </p>
                   <p className="text-xs text-muted">{m.role === "parent" ? "Vuxen" : `Barn · loggar in som ${m.username}`}</p>
-                  {p.total > 0 && <div className="mt-1.5"><ProgressBar size="sm" ratio={p.ratio} color={m.color} /></div>}
+                  {p.total > 0 && <div className="mt-1.5"><ProgressBar thin ratio={p.ratio} /></div>}
                 </div>
               </li>
             );
@@ -87,7 +87,7 @@ export default async function FamilyPage() {
       <form action={signOut}>
         <button className="btn-ghost w-full"><LogOut size={16} /> Logga ut</button>
       </form>
-    </div>
+    </>
   );
 }
 

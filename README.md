@@ -7,7 +7,7 @@ Mobil först. Installeras på hemskärmen (PWA). Vuxna loggar in med e-post, bar
 ## Kom igång
 
 1. **Supabase.** Skapa ett gratis projekt på [supabase.com](https://supabase.com).
-2. **Databasen.** Öppna SQL Editor, klistra in `supabase/migrations/0001_init.sql` och kör.
+2. **Databasen.** Öppna SQL Editor och kör filerna i `supabase/migrations/` i nummerordning.
 3. **Nycklar.** Kopiera `.env.example` till `.env.local` och fyll i från Project Settings → API.
    `SUPABASE_SERVICE_ROLE_KEY` är hemlig och används bara på servern för att skapa barnkonton.
 4. **E-postbekräftelse.** Under Authentication → Sign In / Providers kan du stänga av "Confirm email" om du vill slippa bekräftelsemejlet.
@@ -45,5 +45,4 @@ npm run test:e2e    # hela flödet i mobilvy, kräver körande app + Supabase (E
 
 ## Planerat
 
-- **Fas 2:** budget, renoveringsprojekt, underhåll (tabellerna finns redan i databasen)
-- **Fas 3:** aktiviteter, påminnelser, poäng och belöningar för barnen
+Önskelistan ligger som Issues på GitHub.

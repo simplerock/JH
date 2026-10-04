@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { ChevronRight, Palmtree } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { GoalCard } from "@/components/GoalCard";
 import { ProgressBar } from "@/components/ProgressBar";
+import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
 import { daysBetween, formatRange, today } from "@/lib/dates";
-import { countdown } from "@/lib/format";
-import { goalProgress, isDone, taskProgress } from "@/lib/progress";
+import { countdown, formatNumber } from "@/lib/format";
+import { goalProgress, isDone, maintenanceDue, taskProgress } from "@/lib/progress";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
+import { MaintenanceRow } from "@/components/MaintenanceRow";
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("sv-SE", { hour: "numeric", timeZone: "Europe/Stockholm" }).format(new Date()));
@@ -16,110 +17,113 @@ function greeting() {
 
 export default async function Home() {
   const d = today();
-  const [{ profile, family, members, goals, tasks, completions, isParent }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
-  const byId = new Map(members.map((m) => [m.id, m]));
+  const [data, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
+  const { profile, members, goals, tasks, completions, projects, maintenance, isParent } = data;
+  const me = profile.id;
 
-  const mine = tasks
-    .filter((t) => t.assignee === profile.id || (!t.assignee && t.recurrence !== "none"))
-    .map((t) => ({ t, done: isDone(t, completions) }))
-    .filter(({ t, done }) => !(t.recurrence === "none" && done))
-    .sort((a, b) => Number(a.done) - Number(b.done));
-  const routines = tasks.filter((t) => t.recurrence !== "none");
-  const total = taskProgress(routines, completions);
-  const active = goals.filter((g) => !g.archived);
+  const myTasks = tasks.filter((t) => t.assignee === me && !t.project_id);
+  const open = myTasks.filter((t) => !isDone(t, completions));
+  const closed = myTasks.filter((t) => isDone(t, completions) && t.recurrence !== "none");
+  const myMaint = maintenance
+    .filter((m) => m.owner === me)
+    .map((m) => ({ m, due: maintenanceDue(m, d) }))
+    .filter(({ due }) => due <= 30)
+    .sort((a, b) => a.due - b.due);
+  const myProjects = projects.filter((p) => p.owner === me && p.status !== "done");
+  const myGoals = goals.filter((g) => g.owner === me && !g.archived);
+  const houseOrphans = [...projects.filter((p) => p.status !== "done"), ...maintenance].filter((x) => !x.owner).length;
+  const orphans = houseOrphans + goals.filter((g) => !g.archived && !g.owner).length;
   const vacation = events.find((e) => e.kind === "vacation");
-  const upcoming = events.filter((e) => e !== vacation).slice(0, 3);
+  const nothing = myTasks.length + myMaint.length + myProjects.length + myGoals.length === 0;
   const dateLabel = new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Stockholm" }).format(new Date());
 
   return (
-    <div className="space-y-5">
-      <header className="flex items-center justify-between">
+    <>
+      <header className="flex items-start justify-between">
         <div>
           <p className="text-sm capitalize text-muted">{dateLabel}</p>
-          <h1 className="text-2xl font-bold tracking-tight">{greeting()} {profile.display_name}</h1>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">{greeting()} {profile.display_name}</h1>
         </div>
-        <Link href="/familj" aria-label={family.name}>
-          <Avatar name={profile.display_name} color={profile.color} size={40} />
+        <Link href="/familj" aria-label="Familj">
+          <Avatar name={profile.display_name} color={profile.color} size={36} />
         </Link>
       </header>
 
       {vacation && (
-        <Link href={`/kalender/${vacation.id}`} className="card flex items-center gap-4 border-accent/30 bg-accent-soft">
-          <Palmtree className="shrink-0 text-accent" size={32} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-accent">{countdown(daysBetween(d, vacation.start_date))}</p>
-            <p className="truncate text-lg font-semibold">{vacation.title}</p>
-            <p className="text-sm text-muted">{formatRange(vacation.start_date, vacation.end_date)}</p>
-          </div>
-          <ChevronRight className="text-muted" size={20} />
+        <Link href={`/kalender/${vacation.id}`} className="flex flex-col rounded-2xl bg-accent-soft p-4">
+          <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date))}</span>
+          <span className="text-xl font-bold">{vacation.title}</span>
+          <span className="text-sm text-muted">{formatRange(vacation.start_date, vacation.end_date)}</span>
         </Link>
       )}
 
-      <section className="card space-y-4">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-semibold">Rutiner just nu</h2>
-          <Link href="/rutiner" className="text-sm text-accent">Alla</Link>
-        </div>
-        <ProgressBar ratio={total.ratio} label="Hela familjen" detail={`${total.done} av ${total.total}`} />
-        {members.map((m) => {
-          const theirs = routines.filter((t) => t.assignee === m.id);
-          if (theirs.length === 0) return null;
-          const p = taskProgress(theirs, completions);
-          return <ProgressBar key={m.id} size="sm" ratio={p.ratio} color={m.color} label={m.display_name} detail={`${p.done} av ${p.total}`} />;
-        })}
-      </section>
-
-      <section className="card">
-        <h2 className="font-semibold">Mina sysslor</h2>
-        {mine.length === 0 ? (
-          <p className="py-3 text-sm text-muted">Inget på din lista. Skönt.</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {mine.slice(0, 6).map(({ t, done }) => (
-              <TaskRow key={t.id} task={t} done={done} assignee={t.assignee ? byId.get(t.assignee) : undefined} canToggle />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {active.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold">Vi jobbar mot</h2>
-            <Link href="/mal" className="text-sm text-accent">Alla mål</Link>
-          </div>
-          {active.slice(0, 4).map((g) => (
-            <GoalCard key={g.id} goal={g} progress={goalProgress(g, tasks, completions)} compact />
-          ))}
-        </section>
+      {myTasks.length > 0 && (
+        <Section title="Att göra" aside={`${taskProgress(myTasks, completions).done} av ${myTasks.length} klara`}>
+          {open.length === 0 && <Empty>Allt klart. Snyggt.</Empty>}
+          {open.map((t) => <TaskRow key={t.id} task={t} done={false} canToggle />)}
+          {closed.length > 0 && (
+            <details className="group/done">
+              <summary className="cursor-pointer list-none py-3 text-sm text-muted">
+                <span className="group-open/done:hidden">Visa klara ({closed.length})</span>
+                <span className="hidden group-open/done:inline">Dölj klara</span>
+              </summary>
+              <div className="border-t border-line">
+                {closed.map((t) => <TaskRow key={t.id} task={t} done canToggle />)}
+              </div>
+            </details>
+          )}
+        </Section>
       )}
 
-      {upcoming.length > 0 && (
-        <section className="card">
-          <h2 className="mb-1 font-semibold">På gång</h2>
-          <ul className="divide-y divide-line">
-            {upcoming.map((e) => (
-              <li key={e.id}>
-                <Link href={`/kalender/${e.id}`} className="flex items-center justify-between py-2.5">
-                  <span className="truncate font-medium">{e.title}</span>
-                  <span className="shrink-0 text-sm text-muted">{formatRange(e.start_date, e.end_date)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {myMaint.length > 0 && (
+        <Section title="Underhåll snart">
+          {myMaint.map(({ m, due }) => <MaintenanceRow key={m.id} item={m} d={due} />)}
+        </Section>
       )}
 
-      {isParent && active.length === 0 && tasks.length === 0 && (
-        <section className="card text-center">
-          <p className="font-semibold">Kom igång</p>
-          <p className="mb-3 text-sm text-muted">Sätt ett första mål och lägg in veckans städrutiner.</p>
-          <div className="flex justify-center gap-2">
-            <Link href="/mal" className="btn">Skapa mål</Link>
-            <Link href="/rutiner" className="btn-ghost">Lägg till sysslor</Link>
-          </div>
-        </section>
+      {myProjects.length > 0 && (
+        <Section title="Dina projekt">
+          {myProjects.map((p) => {
+            const steps = tasks.filter((t) => t.project_id === p.id);
+            const sp = taskProgress(steps, completions);
+            return (
+              <Link key={p.id} href="/hemmet" className="block py-4">
+                <ProgressBar ratio={sp.ratio} label={p.title} detail={steps.length ? `${sp.done} av ${sp.total} steg` : "Inga steg än"} />
+                {p.budget ? (
+                  <p className={`mt-1.5 text-[13px] ${Number(p.spent) > Number(p.budget) ? "text-warn" : "text-muted"}`}>
+                    {formatNumber(Number(p.spent))} av {formatNumber(Number(p.budget))} kr
+                  </p>
+                ) : null}
+              </Link>
+            );
+          })}
+        </Section>
       )}
-    </div>
+
+      {myGoals.length > 0 && (
+        <Section title="Dina mål">
+          {myGoals.map((g) => <GoalCard key={g.id} goal={g} progress={goalProgress(g, tasks, completions)} />)}
+        </Section>
+      )}
+
+      {nothing && (
+        <Section>
+          <Empty>Inget på ditt ansvar just nu.{isParent && " Fördela sysslor under Rutiner och ansvar under Mål och Hemmet."}</Empty>
+        </Section>
+      )}
+
+      {isParent && orphans > 0 && (
+        <p className="px-1 text-sm text-muted">
+          {orphans === 1 ? "1 sak saknar ansvarig." : `${orphans} saker saknar ansvarig.`}{" "}
+          <Link href={houseOrphans ? "/hemmet" : "/mal"} className="font-medium text-accent">Fördela</Link>
+        </p>
+      )}
+
+      {members.length === 1 && isParent && (
+        <p className="px-1 text-sm text-muted">
+          Lägg till resten av familjen under <Link href="/familj" className="font-medium text-accent">Familj</Link>.
+        </p>
+      )}
+    </>
   );
 }

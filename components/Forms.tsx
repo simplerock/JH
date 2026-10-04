@@ -21,13 +21,16 @@ export function SubmitButton({ children, className = "btn w-full" }: { children:
 export function StatefulForm({
   action,
   children,
-  className = "space-y-3",
+  className = "flex flex-col gap-3",
   resetOnOk = true,
+  quiet = false,
 }: {
   action: (state: FormState, form: FormData) => Promise<FormState>;
   children: ReactNode;
   className?: string;
   resetOnOk?: boolean;
+  /** Visa inget klartmeddelande. För små formulär på en rad. */
+  quiet?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const ref = useRef<HTMLFormElement>(null);
@@ -50,8 +53,8 @@ export function StatefulForm({
           {children}
         </fieldset>
       </PendingContext.Provider>
-      {state?.error && <p className="rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn" role="alert">{state.error}</p>}
-      {state?.ok && <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm text-accent" role="status">{state.ok}</p>}
+      {state?.error && <p className="w-full rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn" role="alert">{state.error}</p>}
+      {state?.ok && !quiet && <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm text-accent" role="status">{state.ok}</p>}
     </form>
   );
 }

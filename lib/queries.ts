@@ -1,16 +1,18 @@
 import "server-only";
 import { currentPeriods } from "./progress";
 import { getSession } from "./session";
-import type { Completion, FamilyEvent, Goal, Profile, Task } from "./types";
+import type { Completion, FamilyEvent, Goal, MaintenanceItem, Profile, Project, Task } from "./types";
 
 export async function loadFamilyData() {
   const session = await getSession();
   const { supabase } = session;
-  const [members, goals, tasks, completions] = await Promise.all([
+  const [members, goals, tasks, completions, projects, maintenance] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at").returns<Profile[]>(),
     supabase.from("goals").select("*").order("created_at").returns<Goal[]>(),
     supabase.from("tasks").select("*").order("created_at").returns<Task[]>(),
     supabase.from("task_completions").select("task_id, period, completed_by").in("period", currentPeriods()).returns<Completion[]>(),
+    supabase.from("projects").select("*").order("created_at").returns<Project[]>(),
+    supabase.from("maintenance_items").select("*").order("created_at").returns<MaintenanceItem[]>(),
   ]);
   return {
     ...session,
@@ -18,6 +20,8 @@ export async function loadFamilyData() {
     goals: goals.data ?? [],
     tasks: tasks.data ?? [],
     completions: completions.data ?? [],
+    projects: projects.data ?? [],
+    maintenance: maintenance.data ?? [],
   };
 }
 

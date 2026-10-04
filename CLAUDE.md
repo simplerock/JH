@@ -9,11 +9,19 @@ Familjeapp som byggs gemensamt av två föräldrar. Båda itererar med Claude. L
 - PWA: `app/manifest.ts`, `public/sw.js`
 
 ## Struktur
-- `app/(app)/*` inloggade sidor. Mappnamn på svenska: `mal`, `rutiner`, `kalender`, `familj`
+- `app/(app)/*` inloggade sidor. Mappnamn på svenska: `mal`, `rutiner`, `hemmet`, `mer`, `kalender`, `budget`, `familj`
 - `components/` delade komponenter. Återanvänd `ProgressBar`, `GoalCard`, `TaskRow`, `StatefulForm`, `AddPanel`
 - `lib/progress.ts` all progresslogik. `lib/dates.ts` datum i svensk tid, perioder (dag/vecka/månad)
 - `lib/session.ts` `getSession()` och `requireParent()`. `lib/queries.ts` gemensam datahämtning
 - `supabase/migrations/` databasschema
+
+## Design
+Minimalistiskt. Allt som inte hjälper någon att göra något tas bort.
+- Bygg sidor av `Section` (rubrik + grupperad lista, `components/Section.tsx`). Inga ramar, inga skuggor.
+- Färg bara när den betyder något: grön för progress och klart, röd för försenat eller över budget. Personfärg bara i avatarer.
+- Formulär för att skapa saker ligger i en hopfälld `AddPanel` längst ner. Sällan använda knappar göms under "Hantera".
+- Hem visar bara det personen ansvarar för (`assignee` på sysslor, `owner` på mål, projekt och underhåll).
+- Testa nya idéer i `prototyp/familjen.html` först.
 
 ## Regler
 - **UI-text på svenska.** Kort, vardagligt, inga tankstreck i löptext.

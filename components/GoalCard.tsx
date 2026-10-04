@@ -1,45 +1,52 @@
-import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { addToGoal, archiveGoal, deleteGoal } from "@/app/actions";
-import { daysBetween, formatDate, today } from "@/lib/dates";
+import { daysBetween, today } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
 import type { Progress } from "@/lib/progress";
-import type { Goal } from "@/lib/types";
-import type { ReactNode } from "react";
+import type { Goal, Profile } from "@/lib/types";
+import { Avatar } from "./Avatar";
 import { ProgressBar } from "./ProgressBar";
 
 export function goalDetail(goal: Goal, p: Progress): string {
-  if (goal.kind === "amount") return `${formatNumber(p.done)} / ${formatNumber(p.total)} ${goal.unit}`;
-  return p.total === 0 ? "Inga uppgifter än" : `${p.done} av ${p.total} klara`;
+  if (goal.kind === "amount") return `${formatNumber(p.done)} av ${formatNumber(p.total)} ${goal.unit}`;
+  return p.total === 0 ? "Inga steg än" : `${p.done} av ${p.total} steg`;
 }
 
-type Props = { goal: Goal; progress: Progress; isParent?: boolean; compact?: boolean; children?: ReactNode };
+type Props = {
+  goal: Goal;
+  progress: Progress;
+  owner?: Profile;
+  /** Visar knappar för att lägga till belopp, arkivera och ta bort. */
+  editable?: boolean;
+  children?: ReactNode;
+};
 
-export function GoalCard({ goal, progress, isParent, compact, children }: Props) {
+/** Ett mål som rad i en grupperad lista. */
+export function GoalCard({ goal, progress, owner, editable, children }: Props) {
   const left = goal.due_date ? daysBetween(today(), goal.due_date) : null;
   const finished = progress.total > 0 && progress.ratio >= 1;
 
   return (
-    <article className="card">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="chip mb-1">{goal.category}</span>
-          <h3 className="text-lg font-semibold leading-snug break-words">{goal.title}</h3>
-          {!compact && goal.description && <p className="text-sm text-muted">{goal.description}</p>}
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-2xl font-bold tabular-nums text-accent">{Math.round(progress.ratio * 100)}%</p>
-          {left !== null && (
-            <p className={`text-xs ${left < 0 && !finished ? "text-warn" : "text-muted"}`}>
-              {left < 0 ? `Deadline ${formatDate(goal.due_date!)}` : `${left} dagar kvar`}
-            </p>
-          )}
-        </div>
+    <article className="py-4">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h3 className="min-w-0 font-medium">{goal.title}</h3>
+        <span className={`shrink-0 text-sm font-semibold tabular-nums ${finished ? "text-accent" : "text-muted"}`}>
+          {finished ? "Klart" : `${Math.round(progress.ratio * 100)}%`}
+        </span>
       </div>
-      <ProgressBar ratio={progress.ratio} detail={goalDetail(goal, progress)} label={finished ? "Klart!" : undefined} />
-      {!compact && children}
+      <ProgressBar ratio={progress.ratio} />
+      <div className="mt-1.5 flex items-center justify-between gap-3 text-[13px] text-muted">
+        <span>{goalDetail(goal, progress)}</span>
+        <span className="flex items-center gap-2">
+          {left !== null && !finished && <span className={left < 0 ? "text-warn" : ""}>{left < 0 ? "Deadline passerad" : `${left} dagar kvar`}</span>}
+          {owner && <Avatar name={owner.display_name} color={owner.color} size={20} />}
+        </span>
+      </div>
 
-      {!compact && isParent && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+      {children}
+
+      {editable && (
+        <div className="mt-3 flex items-center gap-2">
           {goal.kind === "amount" && !goal.archived && (
             <form action={addToGoal} className="flex flex-1 gap-2">
               <input type="hidden" name="id" value={goal.id} />
@@ -47,19 +54,17 @@ export function GoalCard({ goal, progress, isParent, compact, children }: Props)
               <button className="btn-ghost shrink-0">Lägg till</button>
             </form>
           )}
-          <form action={archiveGoal}>
+          <form action={archiveGoal} className={goal.kind === "amount" && !goal.archived ? "" : "flex-1"}>
             <input type="hidden" name="id" value={goal.id} />
             <input type="hidden" name="archived" value={String(!goal.archived)} />
-            <button className="btn-ghost" aria-label={goal.archived ? "Återställ" : "Arkivera"}>
-              {goal.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-            </button>
+            <button className="btn-ghost">{goal.archived ? "Återställ" : "Arkivera"}</button>
           </form>
-          <form action={deleteGoal}>
-            <input type="hidden" name="id" value={goal.id} />
-            <button className="btn-ghost text-warn" aria-label="Ta bort mål">
-              <Trash2 size={16} />
-            </button>
-          </form>
+          {goal.archived && (
+            <form action={deleteGoal}>
+              <input type="hidden" name="id" value={goal.id} />
+              <button className="btn-ghost text-warn">Ta bort</button>
+            </form>
+          )}
         </div>
       )}
     </article>

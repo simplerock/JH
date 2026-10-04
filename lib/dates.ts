@@ -55,3 +55,27 @@ export const recurrenceLabel: Record<Recurrence, string> = {
   monthly: "Varje månad",
   none: "En gång",
 };
+
+export function addDays(iso: string, n: number): string {
+  const d = parse(iso);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Första och sista dagen i månaden, t.ex. "2026-10" ger ["2026-10-01", "2026-10-31"]. */
+export function monthRange(month: string): [string, string] {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return [`${month}-01`, `${month}-${String(last).padStart(2, "0")}`];
+}
+
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+export function monthName(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
+}

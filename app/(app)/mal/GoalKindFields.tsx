@@ -41,7 +41,7 @@ export function GoalKindFields() {
         </div>
       ) : (
         <p className="rounded-xl bg-track px-3 py-2 text-sm text-muted">
-          Lägg sen till uppgifter under Rutiner och koppla dem till målet. Progressen räknas automatiskt.
+          Lägg till steg under Rutiner och koppla dem till målet. Progressen räknas själv.
         </p>
       )}
     </>
