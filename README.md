@@ -31,6 +31,10 @@ Behörigheterna sitter i databasen (Row Level Security), inte bara i gränssnitt
 
 **Sysslor** kan vara dagliga, veckovisa, månadsvisa eller engångs. Avbockningen gäller perioden, så veckosysslor nollställs på måndag.
 
+## Bygga tillsammans
+
+Se [SAMARBETE.md](SAMARBETE.md) för arbetsflödet och [CLAUDE.md](CLAUDE.md) för reglerna Claude följer.
+
 ## Tester
 
 ```bash
