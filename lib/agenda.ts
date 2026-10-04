@@ -1,5 +1,6 @@
 import { addDays, daysBetween } from "./dates.ts";
 import { maintenanceDue } from "./progress.ts";
+import { readDetails } from "./trip.ts";
 import type { FamilyEvent, Goal, MaintenanceItem, Project, Task } from "./types.ts";
 
 // Allt i familjen som har ett datum, samlat på ett ställe. Det är det kalendern och Hem visar.
@@ -38,6 +39,21 @@ export function buildAgenda(src: AgendaSource, today: string): AgendaItem[] {
       href: `/kalender/${e.id}`,
       owner: e.owner,
       important: true,
+    });
+    // Varje flyg blir en egen rad, så att tiden syns i kalendern. Tiderna är lokala på respektive flygplats.
+    readDetails(e.details).flights.forEach((f, i) => {
+      if (!f.date) return;
+      const route = [f.from, f.to].filter(Boolean).join(" → ");
+      items.push({
+        key: `f-${e.id}-${i}`,
+        kind: "trip",
+        title: ["Flyg", f.flight_no, f.depart && `kl ${f.depart}`].filter(Boolean).join(" ") + (route ? `, ${route}` : ""),
+        date: f.date,
+        end: null,
+        href: `/kalender/${e.id}`,
+        owner: e.owner,
+        important: true,
+      });
     });
   }
   for (const t of src.tasks) {

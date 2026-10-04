@@ -43,3 +43,15 @@ test("ics-fil med heldagar och escaping", async () => {
   assert.ok(ics.includes("DESCRIPTION:MF 8656 14:40\\;KUL\r\n"));
   assert.ok(ics.split("\r\n").every((l) => l.length <= 75));
 });
+
+test("flyg från resan blir egna rader med tid", async () => {
+  const { buildAgenda } = await import("./agenda.ts");
+  const trip = {
+    id: "r", kind: "vacation", title: "Zhangjiajie", start_date: "2026-11-04", end_date: "2026-11-15", owner: "j",
+    details: { flights: [{ date: "2026-11-04", flight_no: "CA 912", from: "Stockholm (ARN)", to: "Peking (PEK)", depart: "18:10", arrive: "09:25", booking_ref: null }] },
+  } as unknown as Parameters<typeof buildAgenda>[0]["events"][number];
+  const items = buildAgenda({ events: [trip], tasks: [], maintenance: [], goals: [], projects: [] }, "2026-10-04");
+  const flight = items.find((i) => i.key === "f-r-0");
+  assert.equal(flight?.title, "Flyg CA 912 kl 18:10, Stockholm (ARN) → Peking (PEK)");
+  assert.equal(flight?.date, "2026-11-04");
+});
