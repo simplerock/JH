@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Section } from "@/components/Section";
 import { formatRange, monthRange, today } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
+import { weekPoints } from "@/lib/progress";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
@@ -20,7 +21,7 @@ function Row({ href, title, sub }: { href: string; title: string; sub: string })
 
 export default async function MorePage() {
   const d = today();
-  const [{ supabase, members, family, isParent }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
+  const [{ supabase, members, family, isParent, tasks, completions, weekFrom }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
   const next = events[0];
 
   let budgetSub = "";
@@ -40,6 +41,11 @@ export default async function MorePage() {
       <PageHeader title="Mer" />
       <Section>
         <Row href="/kalender" title="Kalender" sub={next ? `Nästa: ${next.title}, ${formatRange(next.start_date, next.end_date)}` : "Inget inplanerat"} />
+        <Row
+          href="/poang"
+          title="Poäng och förmåner"
+          sub={members.filter((m) => m.role === "child").map((k) => `${k.display_name} ${weekPoints(k.id, completions, tasks, weekFrom)} p`).join(", ") || "Nivåer och förmåner"}
+        />
         {isParent && <Row href="/budget" title="Budget" sub={budgetSub} />}
         <Row href="/familj" title={family.name} sub={members.map((m) => m.display_name).join(", ")} />
       </Section>

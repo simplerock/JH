@@ -1,9 +1,15 @@
 import { daysBetween, periodKey, today } from "./dates.ts";
-import type { BudgetCategory, ChecklistItem, Completion, Goal, MaintenanceItem, Task, Transaction } from "./types.ts";
+import type { BudgetCategory, ChecklistItem, Completion, Goal, MaintenanceItem, RewardLevel, Task, Transaction } from "./types.ts";
 
-export function isDone(task: Task, completions: Completion[], date: string = today()): boolean {
+/** Avbockningen för sysslans aktuella period, oavsett status. */
+export function currentCompletion(task: Task, completions: Completion[], date: string = today()): Completion | undefined {
   const key = periodKey(task.recurrence, date);
-  return completions.some((c) => c.task_id === task.id && c.period === key);
+  return completions.find((c) => c.task_id === task.id && c.period === key);
+}
+
+/** Klar betyder godkänd. Det som väntar på en förälder räknas inte. */
+export function isDone(task: Task, completions: Completion[], date: string = today()): boolean {
+  return currentCompletion(task, completions, date)?.status === "approved";
 }
 
 export type Progress = { done: number; total: number; ratio: number };
@@ -48,4 +54,29 @@ export function budgetSummary(categories: BudgetCategory[], transactions: Transa
   const limit = categories.reduce((a, c) => a + Number(c.monthly_limit), 0);
   const spent = transactions.reduce((a, t) => a + Number(t.amount), 0);
   return { rows, limit, spent, left: limit - spent, ratio: make(spent, limit).ratio };
+}
+
+/** Godkända poäng sedan veckans start. weekFrom är en ISO-tidsstämpel (måndag 00:00 svensk tid). */
+export function weekPoints(kidId: string, completions: Completion[], tasks: Task[], weekFrom: string): number {
+  const points = new Map(tasks.map((t) => [t.id, t.points]));
+  return completions
+    .filter((c) => c.completed_by === kidId && c.status === "approved" && c.reviewed_at && c.reviewed_at >= weekFrom)
+    .reduce((sum, c) => sum + (points.get(c.task_id) ?? 0), 0);
+}
+
+export type LevelInfo = { level: RewardLevel | undefined; next: RewardLevel | undefined; lowest: boolean; rank: number; total: number };
+
+/** Nivån för en poängsumma. Nivåerna sorteras på min_points, högst först. */
+export function levelFor(points: number, levels: RewardLevel[]): LevelInfo {
+  const sorted = [...levels].sort((a, b) => b.min_points - a.min_points);
+  const i = sorted.findIndex((l) => points >= l.min_points);
+  const level = i === -1 ? sorted[sorted.length - 1] : sorted[i];
+  const idx = level ? sorted.indexOf(level) : -1;
+  return {
+    level,
+    next: idx > 0 ? sorted[idx - 1] : undefined,
+    lowest: idx === sorted.length - 1,
+    rank: idx === -1 ? 0 : sorted.length - idx,
+    total: sorted.length,
+  };
 }

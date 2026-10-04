@@ -89,6 +89,41 @@ update public.profiles set display_name = 'Ella B' where id = auth.uid();
 select tests.expect_count('delete from public.task_completions returning 1', 1, 'barn ångrar egen avbockning');
 reset role;
 
+-- Poängsystemet
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+insert into public.task_completions (task_id, period, status) values (:'task_child', '2026-W41', 'approved') returning id as comp \gset
+select tests.expect_count($$select * from public.task_completions where period = '2026-W41' and status = 'pending'$$, 1, 'barnets avbockning väntar trots approved');
+select tests.expect_count($$update public.task_completions set status = 'approved' where period = '2026-W41' returning 1$$, 0, 'barn godkänner sig själv');
+select tests.expect_count('select * from public.reward_levels', 4, 'barn ser nivåerna');
+select tests.expect_count($$update public.reward_levels set min_points = 1 returning 1$$, 0, 'barn ändrar nivåer');
+select tests.expect_error($$insert into public.reward_levels (name, min_points, reward) values ('Fusk', 0, 'Allt')$$, 'barn skapar nivå');
+insert into storage.objects (bucket_id, name) values ('bevis', :'fam_a' || '/foto1.jpg');
+select tests.expect_error($$insert into storage.objects (bucket_id, name) values ('bevis', 'annan-familj/foto.jpg')$$, 'barn laddar upp i fel mapp');
+reset role;
+
+select set_config('request.jwt.claim.sub', :'pA2', false);
+set role authenticated;
+update public.task_completions set status = 'redo', note = 'Gör om' where period = '2026-W41';
+select tests.expect_count($$select * from public.task_completions where period = '2026-W41' and status = 'redo'$$, 1, 'förälder skickar tillbaka');
+insert into public.task_completions (task_id, period) values (:'task_parent', '2026-W41');
+select tests.expect_count($$select * from public.task_completions where task_id = '$$ || :'task_parent' || $$' and status = 'approved'$$, 1, 'förälderns avbockning godkänns direkt');
+reset role;
+
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count($$delete from public.task_completions where period = '2026-W41' returning 1$$, 1, 'barn tar bort gör om för att skicka igen');
+insert into public.task_completions (task_id, period) values (:'task_child', '2026-W41');
+reset role;
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+update public.task_completions set status = 'approved', reviewed_by = auth.uid(), reviewed_at = now() where period = '2026-W41' and task_id = :'task_child';
+reset role;
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count($$delete from public.task_completions where period = '2026-W41' returning 1$$, 0, 'barn tar bort godkänd');
+reset role;
+
 -- Familj B ser inget från A
 select set_config('request.jwt.claim.sub', :'pB', false);
 set role authenticated;
@@ -97,6 +132,8 @@ select tests.expect_count('select * from public.profiles', 1, 'familj B ser bara
 select tests.expect_count('select * from public.tasks', 0, 'familj B ser inte A:s sysslor');
 select tests.expect_count('select * from public.projects', 0, 'familj B ser inte A:s projekt');
 select tests.expect_count('select * from public.maintenance_items', 0, 'familj B ser inte A:s underhåll');
+select tests.expect_count('select * from public.reward_levels', 4, 'familj B ser bara sina nivåer');
+select tests.expect_count('select * from storage.objects', 0, 'familj B ser inte A:s foton');
 select tests.expect_error(format($$insert into public.tasks (family_id, title) values (%L, 'Intrång')$$, :'fam_a'), 'familj B skriver till A');
 select tests.expect_error(format($$insert into public.task_completions (task_id, period) values (%L, 'x')$$, :'task_child'), 'familj B bockar av A:s syssla');
 reset role;

@@ -193,11 +193,65 @@ export async function createTask(_: FormState, form: FormData): Promise<FormStat
     goal_id: optStr(form, "goal_id"),
     project_id: optStr(form, "project_id"),
     due_date: optStr(form, "due_date"),
-    points: optNum(form, "points") ?? 1,
+    points: Math.max(0, Math.round(optNum(form, "points") ?? 1)),
+    requires_photo: form.get("requires_photo") === "on",
   });
   if (error) return fail(error);
   refresh();
   return { ok: "Tillagd" };
+}
+
+/** Barnet skickar in en syssla. Databasen sätter den som väntande tills en förälder godkänt. */
+export async function submitCompletion(form: FormData) {
+  const { supabase, user, family } = await getSession();
+  const taskId = str(form, "id");
+  const recurrence = str(form, "recurrence") as Recurrence;
+  const period = periodKey(RECURRENCES.includes(recurrence) ? recurrence : "weekly");
+  const photo = optStr(form, "photo_path");
+  if (photo && !photo.startsWith(`${family.id}/`)) throw new Error("Fel sökväg för fotot");
+  const { data: task } = await supabase.from("tasks").select("requires_photo").eq("id", taskId).single();
+  if (task?.requires_photo && !photo) throw new Error("Den här sysslan kräver ett foto");
+  // En tidigare "gör om" tas bort så att den nya kan skickas in.
+  await supabase.from("task_completions").delete().eq("task_id", taskId).eq("period", period).in("status", ["pending", "redo"]);
+  const { error } = await supabase.from("task_completions").insert({ task_id: taskId, period, completed_by: user.id, photo_path: photo });
+  if (error) throw new Error(error.message);
+  refresh();
+}
+
+export async function approveCompletion(form: FormData) {
+  const { supabase, user } = await requireParent();
+  await supabase
+    .from("task_completions")
+    .update({ status: "approved", note: null, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+    .eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function redoCompletion(form: FormData) {
+  const { supabase, user } = await requireParent();
+  await supabase
+    .from("task_completions")
+    .update({ status: "redo", note: optStr(form, "note") ?? "Inte riktigt klart", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+    .eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function saveLevel(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const min = optNum(form, "min_points");
+  if (min === null || min < 0) return { error: "Ange antal poäng" };
+  const row = { name: str(form, "name"), min_points: Math.round(min), reward: str(form, "reward") };
+  const id = optStr(form, "id");
+  const { error } = id ? await supabase.from("reward_levels").update(row).eq("id", id) : await supabase.from("reward_levels").insert(row);
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Sparat" };
+}
+
+export async function deleteLevel(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("reward_levels").delete().eq("id", str(form, "id"));
+  refresh();
 }
 
 export async function toggleTask(form: FormData) {

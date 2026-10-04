@@ -7,7 +7,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
 import { isoWeek, recurrenceLabel, today } from "@/lib/dates";
-import { isDone, taskProgress } from "@/lib/progress";
+import { currentCompletion, isDone, taskProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
 import type { Recurrence } from "@/lib/types";
 
@@ -27,7 +27,6 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
   const routines = tasks.filter((t) => !t.project_id);
   const showAll = vem === "alla";
   const visible = showAll ? routines : routines.filter((t) => t.assignee === profile.id || !t.assignee);
-  const canToggle = (assignee: string | null) => isParent || !assignee || assignee === profile.id;
   const tab = (active: boolean) => `rounded-lg px-3.5 py-1.5 text-sm font-medium ${active ? "bg-card text-ink shadow-sm" : "text-muted"}`;
   const recurring = routines.filter((t) => t.recurrence !== "none");
 
@@ -50,9 +49,10 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
               <TaskRow
                 key={t.id}
                 task={t}
-                done={isDone(t, completions)}
-                assignee={showAll && t.assignee ? byId.get(t.assignee) : undefined}
-                canToggle={canToggle(t.assignee)}
+                completion={currentCompletion(t, completions)}
+                me={profile}
+                assignee={t.assignee ? byId.get(t.assignee) : undefined}
+                showAssignee={showAll}
                 canDelete={isParent && showAll}
               />
             ))}
@@ -123,6 +123,16 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
                   ))}
                 </select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 items-end gap-3">
+              <div>
+                <label className="label" htmlFor="points">Poäng (barn)</label>
+                <input className="input" id="points" name="points" inputMode="numeric" defaultValue="2" />
+              </div>
+              <label className="flex items-center gap-2 py-2.5 text-sm">
+                <input type="checkbox" name="requires_photo" className="size-5 accent-[var(--accent)]" />
+                Kräver foto
+              </label>
             </div>
             <SubmitButton>Lägg till</SubmitButton>
           </StatefulForm>

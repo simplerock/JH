@@ -9,10 +9,10 @@ const items = [
   { href: "/mal", label: "Mål", icon: Target, match: ["/mal"] },
   { href: "/rutiner", label: "Rutiner", icon: Check, match: ["/rutiner"] },
   { href: "/hemmet", label: "Hemmet", icon: Hammer, match: ["/hemmet"] },
-  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj"] },
+  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang"] },
 ];
 
-export function BottomNav() {
+export function BottomNav({ badge = 0 }: { badge?: number }) {
   const path = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
@@ -23,11 +23,16 @@ export function BottomNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                className={`flex flex-col items-center gap-0.5 pb-3 pt-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
+                className={`relative flex flex-col items-center gap-0.5 pb-3 pt-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
                 aria-current={active ? "page" : undefined}
               >
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
                 {label}
+                {href === "/" && badge > 0 && (
+                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={`${badge} att godkänna`}>
+                    {badge}
+                  </span>
+                )}
               </Link>
             </li>
           );

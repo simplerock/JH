@@ -20,7 +20,7 @@ import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
 import { formatDate, today } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
-import { isDone, maintenanceDue, taskProgress } from "@/lib/progress";
+import { currentCompletion, maintenanceDue, taskProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
 import type { ProjectStatus } from "@/lib/types";
 
@@ -81,7 +81,7 @@ export default async function HousePage({ searchParams }: { searchParams: Promis
                   </p>
                 </div>
                 {steps.map((t) => (
-                  <TaskRow key={t.id} task={t} done={isDone(t, completions)} canToggle={isParent || t.assignee === profile.id} canDelete={isParent} plain />
+                  <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={t.assignee ? byId.get(t.assignee) : undefined} canDelete={isParent} plain />
                 ))}
                 {isParent && (
                   <details className="group/manage">

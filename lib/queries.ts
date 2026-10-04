@@ -1,18 +1,27 @@
 import "server-only";
+import { weekStartInstant } from "./dates";
 import { currentPeriods } from "./progress";
 import { getSession } from "./session";
-import type { Completion, FamilyEvent, Goal, MaintenanceItem, Profile, Project, Task } from "./types";
+import type { Completion, FamilyEvent, Goal, MaintenanceItem, Profile, Project, RewardLevel, Task } from "./types";
 
 export async function loadFamilyData() {
   const session = await getSession();
   const { supabase } = session;
-  const [members, goals, tasks, completions, projects, maintenance] = await Promise.all([
+  const weekFrom = weekStartInstant();
+  const periods = currentPeriods().map((p) => `"${p}"`).join(",");
+  const [members, goals, tasks, completions, projects, maintenance, levels] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at").returns<Profile[]>(),
     supabase.from("goals").select("*").order("created_at").returns<Goal[]>(),
     supabase.from("tasks").select("*").order("created_at").returns<Task[]>(),
-    supabase.from("task_completions").select("task_id, period, completed_by").in("period", currentPeriods()).returns<Completion[]>(),
+    // Aktuella perioder, allt som väntar och veckans godkända (för poängen).
+    supabase
+      .from("task_completions")
+      .select("id, task_id, period, completed_by, status, photo_path, note, completed_at, reviewed_at")
+      .or(`period.in.(${periods}),status.eq.pending,reviewed_at.gte.${weekFrom}`)
+      .returns<Completion[]>(),
     supabase.from("projects").select("*").order("created_at").returns<Project[]>(),
     supabase.from("maintenance_items").select("*").order("created_at").returns<MaintenanceItem[]>(),
+    supabase.from("reward_levels").select("*").order("min_points", { ascending: false }).returns<RewardLevel[]>(),
   ]);
   return {
     ...session,
@@ -22,6 +31,8 @@ export async function loadFamilyData() {
     completions: completions.data ?? [],
     projects: projects.data ?? [],
     maintenance: maintenance.data ?? [],
+    levels: levels.data ?? [],
+    weekFrom,
   };
 }
 
@@ -34,4 +45,13 @@ export async function loadEvents(fromDate: string) {
     .order("start_date")
     .returns<FamilyEvent[]>();
   return data ?? [];
+}
+
+/** Signerade länkar till foton, giltiga en timme. */
+export async function signedPhotoUrls(paths: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const { supabase } = await getSession();
+  const { data } = await supabase.storage.from("bevis").createSignedUrls(unique, 3600);
+  return new Map((data ?? []).filter((d) => d.signedUrl && d.path).map((d) => [d.path as string, d.signedUrl as string]));
 }

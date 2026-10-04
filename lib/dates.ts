@@ -79,3 +79,23 @@ export function monthName(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
+
+/** Måndagen i veckan som YYYY-MM-DD. */
+export function weekStart(iso: string = today()): string {
+  const d = parse(iso);
+  const day = d.getUTCDay() || 7;
+  return addDays(iso, 1 - day);
+}
+
+/** Måndag 00:00 svensk tid som ISO-tidsstämpel, för att jämföra med reviewed_at. */
+export function weekStartInstant(now: Date = new Date()): string {
+  const monday = weekStart(today(now));
+  // Prova båda möjliga UTC-offset (sommar +2, vinter +1) och ta den som är midnatt i Stockholm.
+  for (const offset of [2, 1]) {
+    const t = new Date(`${monday}T00:00:00Z`);
+    t.setUTCHours(t.getUTCHours() - offset);
+    const local = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, hour: "2-digit", hour12: false }).format(t);
+    if (Number(local) === 0) return t.toISOString();
+  }
+  return `${monday}T00:00:00.000Z`;
+}

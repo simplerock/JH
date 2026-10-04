@@ -9,6 +9,11 @@ import { countdown, formatNumber } from "@/lib/format";
 import { goalProgress, isDone, maintenanceDue, taskProgress } from "@/lib/progress";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import { MaintenanceRow } from "@/components/MaintenanceRow";
+import { Approvals } from "@/components/Approvals";
+import { ScoreCard } from "@/components/ScoreCard";
+import { weekStart, addDays } from "@/lib/dates";
+import { currentCompletion, levelFor, weekPoints } from "@/lib/progress";
+import { signedPhotoUrls } from "@/lib/queries";
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("sv-SE", { hour: "numeric", timeZone: "Europe/Stockholm" }).format(new Date()));
@@ -18,11 +23,17 @@ function greeting() {
 export default async function Home() {
   const d = today();
   const [data, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
-  const { profile, members, goals, tasks, completions, projects, maintenance, isParent } = data;
+  const { profile, members, goals, tasks, completions, projects, maintenance, isParent, levels, weekFrom } = data;
   const me = profile.id;
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const kids = members.filter((m) => m.role === "child");
+  const daysLeft = daysBetween(d, addDays(weekStart(d), 6));
 
   const myTasks = tasks.filter((t) => t.assignee === me && !t.project_id);
-  const open = myTasks.filter((t) => !isDone(t, completions));
+  const statusOf = (t: (typeof tasks)[number]) => currentCompletion(t, completions)?.status;
+  const open = myTasks.filter((t) => !isDone(t, completions) && statusOf(t) !== "pending");
+  const waiting = myTasks.filter((t) => statusOf(t) === "pending");
   const closed = myTasks.filter((t) => isDone(t, completions) && t.recurrence !== "none");
   const myMaint = maintenance
     .filter((m) => m.owner === me)
@@ -34,7 +45,15 @@ export default async function Home() {
   const houseOrphans = [...projects.filter((p) => p.status !== "done"), ...maintenance].filter((x) => !x.owner).length;
   const orphans = houseOrphans + goals.filter((g) => !g.archived && !g.owner).length;
   const vacation = events.find((e) => e.kind === "vacation");
-  const nothing = myTasks.length + myMaint.length + myProjects.length + myGoals.length === 0;
+  const nothing = isParent && myTasks.length + myMaint.length + myProjects.length + myGoals.length + kids.length === 0;
+  const pending = isParent ? completions.filter((c) => c.status === "pending" && taskById.has(c.task_id)) : [];
+  const photos = await signedPhotoUrls(pending.map((c) => c.photo_path ?? ""));
+  const myPending = completions
+    .filter((c) => c.completed_by === me && c.status === "pending")
+    .reduce((sum, c) => sum + (taskById.get(c.task_id)?.points ?? 0), 0);
+  const row = (t: (typeof tasks)[number]) => (
+    <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={byId.get(t.assignee ?? "")} />
+  );
   const dateLabel = new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Stockholm" }).format(new Date());
 
   return (
@@ -49,6 +68,10 @@ export default async function Home() {
         </Link>
       </header>
 
+      {!isParent && (
+        <ScoreCard points={weekPoints(me, completions, tasks, weekFrom)} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
+      )}
+
       {vacation && (
         <Link href={`/kalender/${vacation.id}`} className="flex flex-col rounded-2xl bg-accent-soft p-4">
           <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date))}</span>
@@ -57,10 +80,19 @@ export default async function Home() {
         </Link>
       )}
 
+      <Approvals
+        items={pending.map((c) => ({
+          completion: c,
+          task: taskById.get(c.task_id)!,
+          kid: byId.get(c.completed_by),
+          photoUrl: c.photo_path ? photos.get(c.photo_path) : undefined,
+        }))}
+      />
+
       {myTasks.length > 0 && (
         <Section title="Att göra" aside={`${taskProgress(myTasks, completions).done} av ${myTasks.length} klara`}>
-          {open.length === 0 && <Empty>Allt klart. Snyggt.</Empty>}
-          {open.map((t) => <TaskRow key={t.id} task={t} done={false} canToggle />)}
+          {open.length === 0 && <Empty>{waiting.length ? "Allt inskickat. Snyggt." : "Allt klart. Snyggt."}</Empty>}
+          {open.map(row)}
           {closed.length > 0 && (
             <details className="group/done">
               <summary className="cursor-pointer list-none py-3 text-sm text-muted">
@@ -68,10 +100,30 @@ export default async function Home() {
                 <span className="hidden group-open/done:inline">Dölj klara</span>
               </summary>
               <div className="border-t border-line">
-                {closed.map((t) => <TaskRow key={t.id} task={t} done canToggle />)}
+                {closed.map(row)}
               </div>
             </details>
           )}
+        </Section>
+      )}
+
+      {waiting.length > 0 && <Section title="Väntar på mamma eller pappa">{waiting.map(row)}</Section>}
+
+      {isParent && kids.length > 0 && (
+        <Section title="Barnens vecka">
+          {kids.map((k) => {
+            const pts = weekPoints(k.id, completions, tasks, weekFrom);
+            const { level, lowest } = levelFor(pts, levels);
+            const top = Math.max(...levels.map((l) => l.min_points), 1);
+            return (
+              <Link key={k.id} href="/poang" className="flex items-center gap-3 py-3.5">
+                <Avatar name={k.display_name} color={k.color} size={22} />
+                <div className="flex-1">
+                  <ProgressBar ratio={pts / top} label={k.display_name} detail={`${pts} p${level ? ` · ${level.name}` : ""}`} over={lowest} thin />
+                </div>
+              </Link>
+            );
+          })}
         </Section>
       )}
 

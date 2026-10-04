@@ -196,10 +196,9 @@ test("barnet loggar in och bockar av", async ({ page }) => {
   await page.getByRole("button", { name: "Logga in" }).click();
 
   await expect(page.getByRole("heading", { name: /Ella/ })).toBeVisible();
-  await page.getByRole("button", { name: "Bocka av Dammsuga" }).click();
-  await expect(page.getByText("Allt klart. Snyggt.")).toBeVisible();
-  await page.getByText("Visa klara (1)").click();
-  await expect(page.getByRole("button", { name: "Ångra Dammsuga" })).toBeVisible();
+  await page.getByRole("button", { name: "Klar med Dammsuga" }).click();
+  await expect(page.getByText("Allt inskickat. Snyggt.")).toBeVisible();
+  await expect(page.getByText("Väntar på mamma eller pappa")).toBeVisible();
   await shot(page, "08-barn-hem");
 
   await expect(page.getByText("Semesterkassa Italien")).toHaveCount(0);

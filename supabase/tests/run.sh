@@ -13,6 +13,7 @@ $RUN "$PGBIN/initdb" -D "$DIR/data" -U postgres -A trust >/dev/null
 $RUN "$PGBIN/pg_ctl" -D "$DIR/data" -o "-p $PORT -k $DIR -c listen_addresses=''" -l "$DIR/log" start -w >/dev/null
 PSQL=(psql -h "$DIR" -p "$PORT" -U postgres -d postgres -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -f supabase/tests/supabase_stub.sql
+"${PSQL[@]}" -f supabase/tests/storage_stub.sql
 for f in supabase/migrations/*.sql; do "${PSQL[@]}" -f "$f"; done
 "${PSQL[@]}" -o /dev/null -f supabase/tests/rls.test.sql
 echo "Databastester OK"

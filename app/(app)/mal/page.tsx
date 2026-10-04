@@ -6,7 +6,7 @@ import { OwnerSelect } from "@/components/OwnerSelect";
 import { PageHeader } from "@/components/PageHeader";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
-import { goalProgress, isDone } from "@/lib/progress";
+import { currentCompletion, goalProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
 import { GoalKindFields } from "./GoalKindFields";
 
@@ -27,7 +27,7 @@ export default async function GoalsPage() {
         {steps.length > 0 && (
           <div className="mt-2 border-t border-line">
             {steps.map((t) => (
-              <TaskRow key={t.id} task={t} done={isDone(t, completions)} canToggle={isParent || t.assignee === profile.id} plain />
+              <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={t.assignee ? byId.get(t.assignee) : undefined} plain />
             ))}
           </div>
         )}

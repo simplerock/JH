@@ -36,9 +36,24 @@ export type Task = {
   project_id: string | null;
   due_date: string | null;
   points: number;
+  requires_photo: boolean;
 };
 
-export type Completion = { task_id: string; period: string; completed_by: string };
+export type CompletionStatus = "pending" | "approved" | "redo";
+
+export type Completion = {
+  id?: string;
+  task_id: string;
+  period: string;
+  completed_by: string;
+  status: CompletionStatus;
+  photo_path?: string | null;
+  note?: string | null;
+  completed_at?: string;
+  reviewed_at?: string | null;
+};
+
+export type RewardLevel = { id: string; name: string; min_points: number; reward: string };
 
 export type ChecklistItem = { text: string; done: boolean };
 
