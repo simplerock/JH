@@ -1,8 +1,16 @@
-export const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
-export const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
-
 /** Bara synliga ASCII-tecken. Fångar en nyckel som kopierats i maskerad form (•••) eller med mellanslag. */
 const plain = (v: string) => /^[\x21-\x7e]+$/.test(v);
+
+// Home Hubs Supabase-projekt. Anon-nyckeln är publik (den skickas ändå till webbläsaren)
+// och används om variabeln i Vercel saknas eller blivit maskerad.
+const HOME_HUB_URL = "https://mqkjydtojcnsxvwwmmsh.supabase.co";
+const HOME_HUB_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xa2p5ZHRvamNuc3h2d3dtbXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMTU3MzIsImV4cCI6MjEwNjY5MTczMn0.x4JJsfkdXb3FpyjnHPFnSATNnZ-RdHQ5f0k6sbDQ7Ks";
+
+export const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+const envAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
+export const supabaseAnonKey =
+  supabaseUrl === HOME_HUB_URL && (!plain(envAnonKey) || envAnonKey.length < 30) ? HOME_HUB_ANON_KEY : envAnonKey;
 
 function problems(): string[] {
   const out: string[] = [];
