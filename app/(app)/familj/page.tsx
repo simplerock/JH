@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressBar } from "@/components/ProgressBar";
+import { ThemePicker } from "@/components/ThemePicker";
 import { taskProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
 
@@ -72,6 +73,8 @@ export default async function FamilyPage() {
           </StatefulForm>
         </AddPanel>
       )}
+
+      <ThemePicker />
 
       <AddPanel title="Min profil">
         <form action={updateMyProfile} className="space-y-3">

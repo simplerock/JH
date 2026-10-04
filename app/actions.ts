@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { addDays, periodKey, today } from "@/lib/dates";
 import { getSession, getUser, requireParent } from "@/lib/session";
@@ -264,6 +265,32 @@ export async function deleteLevel(form: FormData) {
   refresh();
 }
 
+export async function giveExtraPoints(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await requireParent();
+  const points = optNum(form, "points");
+  if (points === null || !Number.isInteger(points) || points === 0 || Math.abs(points) > 100) return { error: "Ange poäng mellan 1 och 100, minus för avdrag" };
+  const reason = str(form, "reason");
+  if (!reason) return { error: "Skriv varför" };
+  const { error } = await supabase.from("point_adjustments").insert({ kid_id: str(form, "kid_id"), points, reason, created_by: user.id });
+  if (error) return fail(error);
+  refresh();
+  return { ok: points > 0 ? `+${points} p` : `${points} p` };
+}
+
+export async function deleteExtraPoints(form: FormData) {
+  const { supabase } = await requireParent();
+  await supabase.from("point_adjustments").delete().eq("id", str(form, "id"));
+  refresh();
+}
+
+export async function setTheme(form: FormData) {
+  const theme = str(form, "theme");
+  const jar = await cookies();
+  if (theme === "light" || theme === "dark") jar.set("theme", theme, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  else jar.delete("theme");
+  refresh();
+}
+
 export async function toggleTask(form: FormData) {
   const { supabase, user } = await getSession();
   const taskId = str(form, "id");
@@ -462,6 +489,31 @@ export async function createCategory(_: FormState, form: FormData): Promise<Form
   if (error) return fail(error);
   refresh();
   return { ok: "Kategorin är tillagd" };
+}
+
+export async function updateCategory(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const limit = optNum(form, "monthly_limit");
+  if (limit === null || !Number.isFinite(limit) || limit < 0) return { error: "Ange en månadsbudget" };
+  const name = str(form, "name");
+  if (!name) return { error: "Ange ett namn" };
+  const { error } = await supabase.from("budget_categories").update({ name, monthly_limit: limit }).eq("id", str(form, "id"));
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Sparat" };
+}
+
+export async function updateTransaction(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireParent();
+  const amount = optNum(form, "amount");
+  if (!amount || !Number.isFinite(amount) || amount <= 0) return { error: "Ange ett belopp" };
+  const { error } = await supabase
+    .from("transactions")
+    .update({ amount, category_id: optStr(form, "category_id"), occurred_on: str(form, "occurred_on") || today(), note: optStr(form, "note") })
+    .eq("id", str(form, "id"));
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Sparat" };
 }
 
 export async function deleteCategory(form: FormData) {

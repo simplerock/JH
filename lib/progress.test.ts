@@ -130,3 +130,19 @@ test("streak och bonus", async () => {
   // Utan dagliga sysslor ingen streak
   assert.equal(currentStreak("other", "2026-10-04", [bed], c), 0);
 });
+
+test("extra poäng räknas bara samma vecka och för rätt barn", async () => {
+  const { extraPoints, kidWeek } = await import("./score.ts");
+  const adj = [
+    { id: "1", kid_id: "k", points: 5, reason: "Bra", created_by: "p", created_at: "2026-10-05T08:00:00Z" },
+    { id: "2", kid_id: "k", points: -3, reason: "Avdrag", created_by: "p", created_at: "2026-10-06T08:00:00Z" },
+    { id: "3", kid_id: "k", points: 10, reason: "Förra veckan", created_by: "p", created_at: "2026-10-01T08:00:00Z" },
+    { id: "4", kid_id: "annan", points: 7, reason: "Syskon", created_by: "p", created_at: "2026-10-05T08:00:00Z" },
+  ];
+  assert.equal(extraPoints("k", adj, "2026-10-04T22:00:00Z"), 2);
+  assert.equal(extraPoints("k", adj, "2026-09-27T22:00:00Z", "2026-10-04T22:00:00Z"), 10);
+  // Avdrag kan aldrig ge minuspoäng totalt.
+  const w = kidWeek("k", [], [], "2026-10-04T22:00:00Z", { day: "2026-10-06", adjustments: [{ ...adj[1], points: -20 }] });
+  assert.equal(w.points, 0);
+  assert.equal(w.extra, -20);
+});

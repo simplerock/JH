@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { addTransaction, createCategory, deleteCategory, deleteTransaction } from "@/app/actions";
+import { addTransaction, createCategory, deleteCategory, deleteTransaction, updateCategory, updateTransaction } from "@/app/actions";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -67,11 +67,21 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
             <summary className="cursor-pointer list-none py-3.5">
               <ProgressBar ratio={ratio} label={category.name} detail={over ? `${kr(-left)} över` : `${kr(left)} kvar`} over={over} thin />
             </summary>
-            <div className="flex items-center justify-between pb-3 text-[13px] text-muted">
-              <span>{kr(spent)} av {kr(Number(category.monthly_limit))}</span>
-              <form action={deleteCategory}>
+            <div className="pb-4">
+              <p className="mb-3 text-[13px] text-muted">{kr(spent)} av {kr(Number(category.monthly_limit))} den här månaden</p>
+              <StatefulForm action={updateCategory} resetOnOk={false}>
                 <input type="hidden" name="id" value={category.id} />
-                <button className="text-warn">Ta bort kategori</button>
+                <div className="grid grid-cols-[1fr_7rem] gap-3">
+                  <input className="input" name="name" defaultValue={category.name} aria-label="Ändra namn" required />
+                  <input className="input" name="monthly_limit" defaultValue={Number(category.monthly_limit)} inputMode="decimal" aria-label="Ändra budget per månad" required />
+                </div>
+                <div className="flex items-center justify-between">
+                  <SubmitButton className="btn-ghost">Spara</SubmitButton>
+                  <button form={`del-${category.id}`} className="flex items-center gap-1 text-sm text-warn"><X size={14} /> Ta bort</button>
+                </div>
+              </StatefulForm>
+              <form id={`del-${category.id}`} action={deleteCategory}>
+                <input type="hidden" name="id" value={category.id} />
               </form>
             </div>
           </details>
@@ -111,17 +121,35 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
       {transactions.length > 0 && (
         <Section title="Utgifter" aside={kr(sum.spent)}>
           {transactions.map((t) => (
-            <div key={t.id} className="flex min-h-12 items-center gap-3 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{t.note || (t.category_id && catName.get(t.category_id)) || "Utgift"}</p>
-                <p className="text-[13px] text-muted">{[t.category_id && catName.get(t.category_id), formatDate(t.occurred_on)].filter(Boolean).join(" · ")}</p>
+            <details key={t.id}>
+              <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{t.note || (t.category_id && catName.get(t.category_id)) || "Utgift"}</p>
+                  <p className="text-[13px] text-muted">{[t.category_id && catName.get(t.category_id), formatDate(t.occurred_on)].filter(Boolean).join(" · ")}</p>
+                </div>
+                <span className="tabular-nums">{kr(Number(t.amount))}</span>
+              </summary>
+              <div className="pb-4">
+                <StatefulForm action={updateTransaction} resetOnOk={false}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="input" name="amount" defaultValue={Number(t.amount)} inputMode="decimal" aria-label="Ändra belopp" required />
+                    <select className="input" name="category_id" defaultValue={t.category_id ?? ""} aria-label="Ändra kategori">
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <input className="input" name="note" defaultValue={t.note ?? ""} aria-label="Ändra vad" />
+                    <input className="input" name="occurred_on" type="date" defaultValue={t.occurred_on} aria-label="Ändra datum" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <SubmitButton className="btn-ghost">Spara</SubmitButton>
+                    <button form={`del-tx-${t.id}`} className="flex items-center gap-1 text-sm text-warn"><X size={14} /> Ta bort</button>
+                  </div>
+                </StatefulForm>
+                <form id={`del-tx-${t.id}`} action={deleteTransaction}>
+                  <input type="hidden" name="id" value={t.id} />
+                </form>
               </div>
-              <span className="tabular-nums">{kr(Number(t.amount))}</span>
-              <form action={deleteTransaction}>
-                <input type="hidden" name="id" value={t.id} />
-                <button aria-label="Ta bort utgift" className="p-1 text-muted"><X size={15} /></button>
-              </form>
-            </div>
+            </details>
           ))}
         </Section>
       )}

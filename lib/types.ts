@@ -57,6 +57,8 @@ export type Completion = {
 
 export type RewardLevel = { id: string; name: string; min_points: number; reward: string };
 
+export type PointAdjustment = { id: string; kid_id: string; points: number; reason: string; created_by: string | null; created_at: string };
+
 export type ChecklistItem = { text: string; done: boolean };
 
 export type FamilyEvent = {

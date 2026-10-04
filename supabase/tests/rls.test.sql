@@ -146,6 +146,26 @@ select tests.expect_count('update public.events set booked = true returning 1', 
 select tests.expect_count($$select * from public.tasks where event_id is not null and assignee = auth.uid()$$, 1, 'barn ser sin packuppgift');
 reset role;
 
+-- Extra poäng
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+insert into public.point_adjustments (kid_id, points, reason) values (:'cA', 5, 'Hjälpte till');
+select tests.expect_error(format($$insert into public.point_adjustments (kid_id, points, reason) values (%L, 5, 'Själv')$$, :'pA'), 'förälder ger poäng till vuxen');
+select tests.expect_error(format($$insert into public.point_adjustments (kid_id, points, reason) values (%L, 0, 'Noll')$$, :'cA'), 'noll poäng');
+reset role;
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count('select * from public.point_adjustments', 1, 'barn ser sina extra poäng');
+select tests.expect_error(format($$insert into public.point_adjustments (kid_id, points, reason) values (%L, 50, 'Fusk')$$, :'cA'), 'barn ger sig själv poäng');
+select tests.expect_count('delete from public.point_adjustments returning 1', 0, 'barn tar bort avdrag');
+select tests.expect_count('update public.point_adjustments set points = 100 returning 1', 0, 'barn ändrar poäng');
+reset role;
+select set_config('request.jwt.claim.sub', :'pB', false);
+set role authenticated;
+select tests.expect_count('select * from public.point_adjustments', 0, 'familj B ser inte A:s extra poäng');
+select tests.expect_error(format($$insert into public.point_adjustments (kid_id, points, reason) values (%L, 5, 'Intrång')$$, :'cA'), 'familj B ger A:s barn poäng');
+reset role;
+
 -- Familj B ser inget från A
 select set_config('request.jwt.claim.sub', :'pB', false);
 set role authenticated;

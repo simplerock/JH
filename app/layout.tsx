@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { RegisterSW } from "@/components/RegisterSW";
+import { getTheme } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,19 +9,29 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Home Hub", statusBarStyle: "default" },
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f4ef" },
-    { media: "(prefers-color-scheme: dark)", color: "#141615" },
-  ],
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-};
+const LIGHT = "#f6f4ef";
+const DARK = "#141615";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await getTheme();
+  return {
+    themeColor:
+      theme === "system"
+        ? [
+            { media: "(prefers-color-scheme: light)", color: LIGHT },
+            { media: "(prefers-color-scheme: dark)", color: DARK },
+          ]
+        : theme === "dark" ? DARK : LIGHT,
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+  };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = await getTheme();
   return (
-    <html lang="sv">
+    <html lang="sv" data-theme={theme === "system" ? undefined : theme}>
       <body className="min-h-dvh antialiased">
         {children}
         <RegisterSW />

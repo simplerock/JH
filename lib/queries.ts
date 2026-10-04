@@ -3,7 +3,7 @@ import { buildAgenda } from "./agenda";
 import { today, weekStartInstant } from "./dates";
 import { currentPeriods } from "./progress";
 import { getSession } from "./session";
-import type { Completion, FamilyEvent, Goal, MaintenanceItem, Profile, Project, RewardLevel, Task } from "./types";
+import type { Completion, FamilyEvent, Goal, MaintenanceItem, PointAdjustment, Profile, Project, RewardLevel, Task } from "./types";
 
 export async function loadFamilyData() {
   const session = await getSession();
@@ -12,7 +12,7 @@ export async function loadFamilyData() {
   const lastWeekFrom = weekStartInstant(new Date(Date.now() - 7 * 86400000));
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
   const periods = currentPeriods().map((p) => `"${p}"`).join(",");
-  const [members, goals, tasks, completions, projects, maintenance, levels] = await Promise.all([
+  const [members, goals, tasks, completions, projects, maintenance, levels, adjustments] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at").returns<Profile[]>(),
     supabase.from("goals").select("*").order("created_at").returns<Goal[]>(),
     supabase.from("tasks").select("*").order("created_at").returns<Task[]>(),
@@ -25,6 +25,7 @@ export async function loadFamilyData() {
     supabase.from("projects").select("*").order("created_at").returns<Project[]>(),
     supabase.from("maintenance_items").select("*").order("created_at").returns<MaintenanceItem[]>(),
     supabase.from("reward_levels").select("*").order("min_points", { ascending: false }).returns<RewardLevel[]>(),
+    supabase.from("point_adjustments").select("*").gte("created_at", lastWeekFrom).order("created_at", { ascending: false }).returns<PointAdjustment[]>(),
   ]);
   return {
     ...session,
@@ -35,6 +36,7 @@ export async function loadFamilyData() {
     projects: projects.data ?? [],
     maintenance: maintenance.data ?? [],
     levels: levels.data ?? [],
+    adjustments: adjustments.data ?? [],
     weekFrom,
     lastWeekFrom,
   };

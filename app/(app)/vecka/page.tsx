@@ -14,7 +14,7 @@ import { kidWeek } from "@/lib/score";
 /** Underlag för familjens veckomöte: veckan som gått och veckan som kommer. */
 export default async function WeekReview() {
   const data = await loadAgenda();
-  const { isParent, members, tasks, completions, levels, maintenance, goals, projects, events, agenda } = data;
+  const { isParent, members, tasks, completions, levels, adjustments, maintenance, goals, projects, events, agenda } = data;
   if (!isParent) redirect("/");
 
   const d = today();
@@ -39,7 +39,7 @@ export default async function WeekReview() {
 
   const talk: string[] = [];
   for (const k of kids) {
-    const w = kidWeek(k.id, tasks, completions, from, { weekTo: to, day: lastDay > d ? d : lastDay });
+    const w = kidWeek(k.id, tasks, completions, from, { weekTo: to, day: lastDay > d ? d : lastDay, adjustments });
     const { lowest } = levelFor(w.points, levels);
     if (lowest) talk.push(`${k.display_name} hamnade under ribban. Vad behövs för att det ska gå bättre?`);
   }
@@ -54,7 +54,7 @@ export default async function WeekReview() {
       {kids.length > 0 && (
         <Section title="Barnen">
           {kids.map((k) => {
-            const w = kidWeek(k.id, tasks, completions, from, { weekTo: to, day: lastDay > d ? d : lastDay });
+            const w = kidWeek(k.id, tasks, completions, from, { weekTo: to, day: lastDay > d ? d : lastDay, adjustments });
             const { level, lowest } = levelFor(w.points, levels);
             return (
               <div key={k.id} className="flex gap-3 py-4">

@@ -31,7 +31,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
   const { events, agenda } = data;
   const [from, to] = rangeDates(range, d, weekStart(d));
   const upcoming = byDay(inRange(agenda.filter((i) => i.important && i.kind !== "maintenance"), from, to, d), from);
-  const { profile, members, goals, tasks, completions, projects, maintenance, isParent, levels, weekFrom } = data;
+  const { profile, members, goals, tasks, completions, projects, maintenance, isParent, levels, weekFrom, adjustments } = data;
   const me = profile.id;
   const byId = new Map(members.map((m) => [m.id, m]));
   const taskById = new Map(tasks.map((t) => [t.id, t]));
@@ -77,7 +77,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
       </header>
 
       {!isParent && (
-        <ScoreCard week={kidWeek(me, tasks, completions, weekFrom)} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
+        <ScoreCard week={kidWeek(me, tasks, completions, weekFrom, { adjustments })} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
       )}
 
       {vacation && (
@@ -136,7 +136,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
       {isParent && kids.length > 0 && (
         <Section title="Barnens vecka">
           {kids.map((k) => {
-            const pts = kidWeek(k.id, tasks, completions, weekFrom).points;
+            const pts = kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points;
             const { level, lowest } = levelFor(pts, levels);
             const top = Math.max(...levels.map((l) => l.min_points), 1);
             return (

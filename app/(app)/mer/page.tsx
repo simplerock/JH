@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/format";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import { kidWeek } from "@/lib/score";
 
+
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
   return (
     <Link href={href} className="flex min-h-14 items-center gap-3 py-3">
@@ -21,7 +22,7 @@ function Row({ href, title, sub }: { href: string; title: string; sub: string })
 
 export default async function MorePage() {
   const d = today();
-  const [{ supabase, members, family, isParent, tasks, completions, weekFrom }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
+  const [{ supabase, members, family, isParent, tasks, completions, weekFrom, adjustments }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
   const next = events[0];
 
   let budgetSub = "";
@@ -45,10 +46,10 @@ export default async function MorePage() {
         <Row
           href="/poang"
           title="Poäng och förmåner"
-          sub={members.filter((m) => m.role === "child").map((k) => `${k.display_name} ${kidWeek(k.id, tasks, completions, weekFrom).points} p`).join(", ") || "Nivåer och förmåner"}
+          sub={members.filter((m) => m.role === "child").map((k) => `${k.display_name} ${kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points} p`).join(", ") || "Nivåer och förmåner"}
         />
         {isParent && <Row href="/budget" title="Budget" sub={budgetSub} />}
-        <Row href="/familj" title={family.name} sub={members.map((m) => m.display_name).join(", ")} />
+        <Row href="/familj" title={family.name} sub={`${members.map((m) => m.display_name).join(", ")} · profil och utseende`} />
       </Section>
     </>
   );
