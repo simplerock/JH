@@ -37,9 +37,8 @@ create policy "förälder granskar" on public.task_completions
   with check (family_id = public.my_family() and public.is_parent());
 
 -- Barn får bara ta bort egna som väntar eller ska göras om. Godkända ligger kvar.
-drop policy "ångra avbockning" on public.task_completions;
-create policy "ångra avbockning" on public.task_completions
-  for delete using (
+alter policy "ångra avbockning" on public.task_completions
+  using (
     family_id = public.my_family()
     and (public.is_parent() or (completed_by = auth.uid() and status in ('pending', 'redo')))
   );

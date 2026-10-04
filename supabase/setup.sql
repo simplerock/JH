@@ -1,5 +1,5 @@
 -- Home Hub: hela databasen i en fil. Klistra in i Supabase SQL Editor och tryck Run.
--- Skapad från supabase/migrations/0001-0005. Kör den bara en gång, på ett nytt projekt.
+-- Skapad från supabase/migrations/. Kör den bara en gång, på ett nytt projekt.
 
 -- ===== 0001_init.sql =====
 -- Familjeappen: grundschema
@@ -270,7 +270,7 @@ begin
 end $$;
 
 create function public.new_invite_code() returns text
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare c text := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
 begin
   if not public.is_parent() then raise exception 'Bara föräldrar'; end if;
@@ -333,9 +333,8 @@ create policy "förälder granskar" on public.task_completions
   with check (family_id = public.my_family() and public.is_parent());
 
 -- Barn får bara ta bort egna som väntar eller ska göras om. Godkända ligger kvar.
-drop policy "ångra avbockning" on public.task_completions;
-create policy "ångra avbockning" on public.task_completions
-  for delete using (
+alter policy "ångra avbockning" on public.task_completions
+  using (
     family_id = public.my_family()
     and (public.is_parent() or (completed_by = auth.uid() and status in ('pending', 'redo')))
   );
@@ -447,7 +446,7 @@ alter table public.families
   add column calendar_token text not null unique default encode(gen_random_bytes(18), 'hex');
 
 create function public.new_calendar_token() returns text
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare t text := encode(gen_random_bytes(18), 'hex');
 begin
   if not public.is_parent() then raise exception 'Bara föräldrar'; end if;
@@ -457,4 +456,14 @@ end $$;
 
 revoke execute on function public.new_calendar_token() from public, anon;
 grant execute on function public.new_calendar_token() to authenticated;
+
+-- ===== 0006_hardning.sql =====
+-- Åtstramning efter Supabase säkerhetsgranskning.
+-- Utloggade behöver inte hjälpfunktionerna. Triggerfunktionen ska ingen anropa direkt
+-- (triggers kräver inte execute-rättighet för att köras).
+revoke execute on function public.my_family() from public, anon;
+revoke execute on function public.is_parent() from public, anon;
+grant execute on function public.my_family() to authenticated;
+grant execute on function public.is_parent() to authenticated;
+revoke execute on function public.completion_defaults() from public, anon, authenticated;
 

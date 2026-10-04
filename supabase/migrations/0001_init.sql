@@ -266,7 +266,7 @@ begin
 end $$;
 
 create function public.new_invite_code() returns text
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare c text := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
 begin
   if not public.is_parent() then raise exception 'Bara föräldrar'; end if;
