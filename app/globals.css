@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f4ef;
+  --card: #ffffff;
+  --ink: #1d1f1e;
+  --muted: #6b6f6c;
+  --line: #e6e2d9;
+  --accent: #2f6f55;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3efe8;
+  --track: #ece8df;
+  --warn: #c2552d;
+  --warn-soft: #f8e6dd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141615;
+    --card: #1d201f;
+    --ink: #eceeed;
+    --muted: #9aa09d;
+    --line: #2c302e;
+    --accent: #5fbf93;
+    --accent-ink: #0f1d16;
+    --accent-soft: #1f3329;
+    --track: #2a2e2c;
+    --warn: #ef8a62;
+    --warn-soft: #3a241b;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-track: var(--track);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-card p-4;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-base text-ink outline-none placeholder:text-muted focus:border-accent;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-muted;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-accent-ink transition active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-medium text-ink transition active:scale-[0.98];
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent;
+  }
+}
