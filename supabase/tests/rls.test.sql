@@ -124,6 +124,28 @@ set role authenticated;
 select tests.expect_count($$delete from public.task_completions where period = '2026-W41' returning 1$$, 0, 'barn tar bort godkänd');
 reset role;
 
+-- Resor
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+insert into public.events (kind, title, start_date, end_date, booked, owner, details)
+  values ('vacation', 'Zhangjiajie', '2026-11-07', '2026-11-15', false, :'pA2', '{"flights": [{"flight_no": "MF 8656"}]}')
+  returning id as trip \gset
+insert into public.event_files (event_id, path, name, mime) values (:'trip', :'fam_a' || '/resa/program.pdf', 'program.pdf', 'application/pdf');
+insert into storage.objects (bucket_id, name) values ('resor', :'fam_a' || '/resa/program.pdf');
+insert into public.tasks (title, recurrence, assignee, event_id, points, requires_photo) values ('Packa väskan', 'none', :'cA', :'trip', 6, true);
+reset role;
+
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count($$select * from public.events where details->'flights'->0->>'flight_no' = 'MF 8656'$$, 1, 'barn ser reseinfon');
+select tests.expect_count('select * from public.event_files', 1, 'barn ser dokumenten');
+select tests.expect_count($$select * from storage.objects where bucket_id = 'resor'$$, 1, 'barn kan öppna dokumenten');
+select tests.expect_error(format($$insert into public.event_files (event_id, path, name, mime) values (%L, 'x', 'x', 'x')$$, :'trip'), 'barn laddar upp dokument');
+select tests.expect_error(format($$insert into storage.objects (bucket_id, name) values ('resor', %L)$$, :'fam_a' || '/resa/fusk.pdf'), 'barn laddar upp till resor');
+select tests.expect_count('update public.events set booked = true returning 1', 0, 'barn ändrar resan');
+select tests.expect_count($$select * from public.tasks where event_id is not null and assignee = auth.uid()$$, 1, 'barn ser sin packuppgift');
+reset role;
+
 -- Familj B ser inget från A
 select set_config('request.jwt.claim.sub', :'pB', false);
 set role authenticated;
@@ -133,7 +155,9 @@ select tests.expect_count('select * from public.tasks', 0, 'familj B ser inte A:
 select tests.expect_count('select * from public.projects', 0, 'familj B ser inte A:s projekt');
 select tests.expect_count('select * from public.maintenance_items', 0, 'familj B ser inte A:s underhåll');
 select tests.expect_count('select * from public.reward_levels', 4, 'familj B ser bara sina nivåer');
-select tests.expect_count('select * from storage.objects', 0, 'familj B ser inte A:s foton');
+select tests.expect_count('select * from storage.objects', 0, 'familj B ser inte A:s foton eller dokument');
+select tests.expect_count('select * from public.event_files', 0, 'familj B ser inte A:s resedokument');
+select tests.expect_count('select * from public.events', 0, 'familj B ser inte A:s resor');
 select tests.expect_error(format($$insert into public.tasks (family_id, title) values (%L, 'Intrång')$$, :'fam_a'), 'familj B skriver till A');
 select tests.expect_error(format($$insert into public.task_completions (task_id, period) values (%L, 'x')$$, :'task_child'), 'familj B bockar av A:s syssla');
 reset role;

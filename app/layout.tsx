@@ -3,9 +3,9 @@ import { RegisterSW } from "@/components/RegisterSW";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Familjen",
+  title: "Home Hub",
   description: "Rutiner, mål och planer för hela familjen.",
-  appleWebApp: { capable: true, title: "Familjen", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Home Hub", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

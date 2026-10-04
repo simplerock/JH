@@ -1,4 +1,4 @@
-# Familjen: instruktioner för Claude
+# Home Hub: instruktioner för Claude
 
 Familjeapp som byggs gemensamt av två föräldrar. Båda itererar med Claude. Läs detta innan du ändrar något.
 

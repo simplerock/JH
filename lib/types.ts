@@ -37,6 +37,7 @@ export type Task = {
   due_date: string | null;
   points: number;
   requires_photo: boolean;
+  event_id: string | null;
 };
 
 export type CompletionStatus = "pending" | "approved" | "redo";
@@ -67,7 +68,14 @@ export type FamilyEvent = {
   notes: string | null;
   checklist: ChecklistItem[];
   goal_id: string | null;
+  details: unknown;
+  booked: boolean;
+  owner: string | null;
+  updated_at: string;
+  updated_by: string | null;
 };
+
+export type EventFile = { id: string; event_id: string; path: string; name: string; mime: string; created_at: string };
 
 export type ProjectStatus = "idea" | "planned" | "ongoing" | "done";
 

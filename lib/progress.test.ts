@@ -6,7 +6,7 @@ import { monthRange, shiftMonth, weekStart, weekStartInstant } from "./dates.ts"
 import type { Goal, Task } from "./types.ts";
 
 const task = (over: Partial<Task>): Task => ({
-  id: "t", title: "x", area: null, recurrence: "weekly", assignee: null, goal_id: null, project_id: null, due_date: null, points: 1, requires_photo: false, ...over,
+  id: "t", title: "x", area: null, recurrence: "weekly", assignee: null, goal_id: null, project_id: null, due_date: null, points: 1, requires_photo: false, event_id: null, ...over,
 });
 
 test("ISO-veckor stämmer runt årsskiftet", () => {

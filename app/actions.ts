@@ -6,6 +6,8 @@ import { periodKey, today } from "@/lib/dates";
 import { getSession, getUser, requireParent } from "@/lib/session";
 import { childEmail, childPassword } from "@/lib/supabase/config";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { extractTrip, aiEnabled } from "@/lib/ai/trip";
+import { mergeDetails, readDetails, SUPPORTED, TripExtraction } from "@/lib/trip";
 import type { ChecklistItem, FamilyEvent, ProjectStatus, Recurrence } from "@/lib/types";
 
 export type FormState = { error?: string; ok?: string } | undefined;
@@ -192,6 +194,7 @@ export async function createTask(_: FormState, form: FormData): Promise<FormStat
     assignee: optStr(form, "assignee"),
     goal_id: optStr(form, "goal_id"),
     project_id: optStr(form, "project_id"),
+    event_id: optStr(form, "event_id"),
     due_date: optStr(form, "due_date"),
     points: Math.max(0, Math.round(optNum(form, "points") ?? 1)),
     requires_photo: form.get("requires_photo") === "on",
@@ -293,6 +296,8 @@ export async function createEvent(_: FormState, form: FormData): Promise<FormSta
       notes: optStr(form, "notes"),
       checklist: parseChecklist(str(form, "checklist")),
       goal_id: optStr(form, "goal_id"),
+      owner: optStr(form, "owner"),
+      booked: form.get("booked") === "on",
     })
     .select("id")
     .single();
@@ -302,7 +307,7 @@ export async function createEvent(_: FormState, form: FormData): Promise<FormSta
 }
 
 export async function updateEvent(_: FormState, form: FormData): Promise<FormState> {
-  const { supabase } = await requireParent();
+  const { supabase, user } = await requireParent();
   const { error } = await supabase
     .from("events")
     .update({
@@ -312,6 +317,10 @@ export async function updateEvent(_: FormState, form: FormData): Promise<FormSta
       location: optStr(form, "location"),
       notes: optStr(form, "notes"),
       goal_id: optStr(form, "goal_id"),
+      owner: optStr(form, "owner"),
+      booked: form.get("booked") === "on",
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
     })
     .eq("id", str(form, "id"));
   if (error) return fail(error);
@@ -472,4 +481,100 @@ export async function deleteTransaction(form: FormData) {
   const { supabase } = await requireParent();
   await supabase.from("transactions").delete().eq("id", str(form, "id"));
   refresh();
+}
+
+// Resor: dokument och AI-inläsning ---------------------------------------------------
+
+export type TripDraft = TripExtraction & { packingNew: string[] };
+export type ReadResult = { draft?: TripDraft; error?: string };
+
+export async function addEventFiles(eventId: string, files: { path: string; name: string; mime: string }[]) {
+  const { supabase, user, family } = await requireParent();
+  const rows = files
+    .filter((f) => f.path.startsWith(`${family.id}/${eventId}/`))
+    .map((f) => ({ event_id: eventId, path: f.path, name: f.name.slice(0, 200), mime: f.mime }));
+  if (rows.length === 0) return [];
+  const { data, error } = await supabase.from("event_files").insert(rows).select("id");
+  if (error) throw new Error(error.message);
+  await supabase.from("events").update({ updated_at: new Date().toISOString(), updated_by: user.id }).eq("id", eventId);
+  refresh();
+  return (data ?? []).map((d) => d.id as string);
+}
+
+export async function deleteEventFile(form: FormData) {
+  const { supabase } = await requireParent();
+  const { data } = await supabase.from("event_files").select("path").eq("id", str(form, "id")).single();
+  if (data) await supabase.storage.from("resor").remove([data.path]);
+  await supabase.from("event_files").delete().eq("id", str(form, "id"));
+  refresh();
+}
+
+/** Claude läser de valda dokumenten. Resultatet slås ihop med det som redan finns och visas för granskning. */
+export async function readTripDocuments(eventId: string, fileIds: string[]): Promise<ReadResult> {
+  try {
+    const { supabase } = await requireParent();
+    if (!aiEnabled()) return { error: "AI-inläsning är inte påslagen. Fyll i för hand." };
+    const [{ data: event }, { data: rows }] = await Promise.all([
+      supabase.from("events").select("*").eq("id", eventId).single<FamilyEvent>(),
+      supabase.from("event_files").select("path, name, mime").eq("event_id", eventId).in("id", fileIds),
+    ]);
+    if (!event) return { error: "Hittar inte resan" };
+    const usable = (rows ?? []).filter((r) => SUPPORTED.includes(r.mime));
+    if (usable.length === 0) return { error: "Inga filer som går att läsa. PDF, bilder och mejl fungerar." };
+    const files = await Promise.all(
+      usable.map(async (r) => {
+        const { data, error } = await supabase.storage.from("resor").download(r.path);
+        if (error || !data) throw new Error(`Kunde inte hämta ${r.name}`);
+        return { name: r.name, mime: r.mime, data: Buffer.from(await data.arrayBuffer()) };
+      }),
+    );
+    const found = await extractTrip(files);
+    const merged = mergeDetails(readDetails(event.details), found);
+    const have = new Set(event.checklist.map((c) => c.text.toLowerCase()));
+    return {
+      draft: {
+        ...merged,
+        title: found.title ?? event.title,
+        start_date: found.start_date ?? event.start_date,
+        end_date: found.end_date ?? event.end_date,
+        location: found.location ?? event.location,
+        booked: found.booked === null ? event.booked : found.booked || event.booked,
+        packing: found.packing,
+        packingNew: found.packing.filter((p) => !have.has(p.toLowerCase())),
+      },
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Något gick fel" };
+  }
+}
+
+/** Sparar granskad reseinformation. Ersätter details med det som visades i formuläret. */
+export async function saveTripDetails(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await requireParent();
+  const id = str(form, "id");
+  const parsed = TripExtraction.safeParse(JSON.parse(str(form, "payload") || "{}"));
+  if (!parsed.success) return { error: "Något fält är fel ifyllt" };
+  const t = parsed.data;
+  if (!t.start_date) return { error: "Resan behöver ett startdatum" };
+  const { data: event } = await supabase.from("events").select("checklist").eq("id", id).single<Pick<FamilyEvent, "checklist">>();
+  const add = form.getAll("pack").map(String).filter(Boolean);
+  const have = new Set((event?.checklist ?? []).map((c) => c.text.toLowerCase()));
+  const checklist = [...(event?.checklist ?? []), ...add.filter((p) => !have.has(p.toLowerCase())).map((text) => ({ text, done: false }))];
+  const { error } = await supabase
+    .from("events")
+    .update({
+      title: t.title || undefined,
+      start_date: t.start_date,
+      end_date: t.end_date && t.end_date >= t.start_date ? t.end_date : null,
+      location: t.location,
+      booked: Boolean(t.booked),
+      details: { flights: t.flights, hotels: t.hotels, days: t.days, important: t.important },
+      checklist,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    })
+    .eq("id", id);
+  if (error) return fail(error);
+  refresh();
+  return { ok: "Sparat. Alla i familjen ser nu samma information." };
 }

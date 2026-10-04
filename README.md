@@ -1,4 +1,4 @@
-# Familjen
+# Home Hub
 
 Familjeapp för struktur och tydliga mål. Rutiner, städ, semester och kalender, med progressbars som visar vad familjen jobbar mot.
 

@@ -1,6 +1,6 @@
 // Enkel service worker: gör appen installerbar och visar en offlinesida.
 // Inloggad data cachas inte, den ska alltid vara färsk.
-const CACHE = "familjen-v1";
+const CACHE = "homehub-v1";
 const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (event) => {

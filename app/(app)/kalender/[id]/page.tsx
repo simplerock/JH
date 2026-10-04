@@ -1,20 +1,42 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Trash2, X } from "lucide-react";
-import { addChecklistItems, deleteEvent, removeChecklistItem, toggleChecklistItem, updateEvent } from "@/app/actions";
+import { ArrowLeft, FileText, MapPin, Trash2, X } from "lucide-react";
+import { addChecklistItems, createTask, deleteEvent, deleteEventFile, removeChecklistItem, toggleChecklistItem, updateEvent } from "@/app/actions";
+import { OwnerSelect } from "@/components/OwnerSelect";
+import { Empty, Section } from "@/components/Section";
+import { TaskRow } from "@/components/TaskRow";
+import { aiEnabled } from "@/lib/ai/trip";
+import { readDetails } from "@/lib/trip";
+import { currentCompletion } from "@/lib/progress";
+import { formatDate } from "@/lib/dates";
+import { TripEditor } from "./TripEditor";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { GoalCard } from "@/components/GoalCard";
 import { daysBetween, formatRange, today } from "@/lib/dates";
 import { countdown, plural } from "@/lib/format";
 import { checklistProgress, goalProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
-import type { FamilyEvent } from "@/lib/types";
+import type { EventFile, FamilyEvent } from "@/lib/types";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, goals, tasks, completions, isParent } = await loadFamilyData();
-  const { data: e } = await supabase.from("events").select("*").eq("id", id).maybeSingle<FamilyEvent>();
+  const { supabase, goals, tasks, completions, isParent, profile, members, family } = await loadFamilyData();
+  const [{ data: e }, { data: fileRows }] = await Promise.all([
+    supabase.from("events").select("*").eq("id", id).maybeSingle<FamilyEvent>(),
+    supabase.from("event_files").select("*").eq("event_id", id).order("created_at").returns<EventFile[]>(),
+  ]);
   if (!e) notFound();
+  const files = fileRows ?? [];
+  const { data: signed } = files.length
+    ? await supabase.storage.from("resor").createSignedUrls(files.map((f) => f.path), 3600)
+    : { data: [] };
+  const urls = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const details = readDetails(e.details);
+  const trip = e.kind === "vacation";
+  const tripTasks = tasks.filter((t) => t.event_id === e.id);
+  const updatedBy = e.updated_by ? byId.get(e.updated_by)?.display_name : null;
+  const updated = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", timeZone: "Europe/Stockholm" }).format(new Date(e.updated_at));
 
   const d = today();
   const check = checklistProgress(e.checklist);
@@ -35,7 +57,126 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         {e.location && (
           <p className="mt-1 flex items-center gap-1 text-sm text-muted"><MapPin size={14} />{e.location}</p>
         )}
+        {trip && (
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-muted">
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${e.booked ? "bg-accent-soft text-accent" : "bg-warn-soft text-warn"}`}>
+              {e.booked ? "Bokat" : "Inte bokat"}
+            </span>
+            Uppdaterad {updated}{updatedBy ? ` av ${updatedBy}` : ""}
+          </p>
+        )}
       </header>
+
+      {details.flights.length > 0 && (
+        <Section title="Flyg">
+          {details.flights.map((f, i) => (
+            <div key={i} className="py-3">
+              <p className="font-medium">{[f.from, f.to].filter(Boolean).join(" → ") || "Flyg"}</p>
+              <p className="text-[13px] text-muted">
+                {[f.date && formatDate(f.date), f.flight_no, f.depart && f.arrive ? `${f.depart}–${f.arrive}` : f.depart].filter(Boolean).join(" · ")}
+              </p>
+              {f.booking_ref && <p className="text-[13px] font-medium tabular-nums">Bokning {f.booking_ref}</p>}
+            </div>
+          ))}
+        </Section>
+      )}
+
+      {details.important.length > 0 && (
+        <Section title="Viktigt att veta">
+          <ul className="list-disc space-y-1.5 py-3.5 pl-5 marker:text-muted">
+            {details.important.map((x, i) => <li key={i}>{x}</li>)}
+          </ul>
+        </Section>
+      )}
+
+      {details.hotels.length > 0 && (
+        <Section title="Hotell">
+          {details.hotels.map((h, i) => (
+            <div key={i} className="flex items-start gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{h.name}</p>
+                {(h.address || h.phone) && <p className="text-[13px] text-muted">{[h.address, h.phone].filter(Boolean).join(" · ")}</p>}
+              </div>
+              {h.check_in && <span className="shrink-0 text-sm text-muted">{formatRange(h.check_in, h.check_out)}</span>}
+            </div>
+          ))}
+        </Section>
+      )}
+
+      {details.days.length > 0 && (
+        <Section title="Program">
+          <ol className="list-decimal space-y-2 py-3.5 pl-6 marker:text-muted">
+            {details.days.map((x, i) => <li key={i}>{x.date ? <span className="text-muted">{formatDate(x.date)}: </span> : null}{x.text}</li>)}
+          </ol>
+        </Section>
+      )}
+
+      {(files.length > 0 || isParent) && trip && (
+        <Section title="Dokument">
+          {files.length === 0 && <Empty>Inga dokument än.</Empty>}
+          {files.map((f) => (
+            <div key={f.id} className="flex min-h-12 items-center gap-3 py-2.5">
+              <FileText size={18} className="shrink-0 text-muted" />
+              <a href={urls.get(f.path) ?? "#"} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-medium">{f.name}</a>
+              {isParent && (
+                <form action={deleteEventFile}>
+                  <input type="hidden" name="id" value={f.id} />
+                  <button aria-label={`Ta bort ${f.name}`} className="p-1 text-muted"><X size={14} /></button>
+                </form>
+              )}
+            </div>
+          ))}
+          {isParent && (
+            <div className="py-4">
+              <TripEditor
+                eventId={e.id}
+                familyId={family.id}
+                ai={aiEnabled()}
+                current={{
+                  ...details,
+                  title: e.title,
+                  start_date: e.start_date,
+                  end_date: e.end_date,
+                  location: e.location,
+                  booked: e.booked,
+                  packing: [],
+                  packingNew: [],
+                }}
+              />
+            </div>
+          )}
+        </Section>
+      )}
+
+      {trip && (tripTasks.length > 0 || isParent) && (
+        <Section title="Inför resan" aside={tripTasks.length ? `${tripTasks.filter((t) => currentCompletion(t, completions)?.status === "approved").length} av ${tripTasks.length}` : undefined}>
+          {tripTasks.map((t) => (
+            <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={t.assignee ? byId.get(t.assignee) : undefined} showAssignee canDelete={isParent} />
+          ))}
+          {isParent && (
+            <details className="py-3">
+              <summary className="cursor-pointer list-none text-sm font-medium text-accent">+ Lägg till uppgift</summary>
+              <StatefulForm action={createTask} className="mt-3 flex flex-col gap-3">
+                <input type="hidden" name="event_id" value={e.id} />
+                <input type="hidden" name="recurrence" value="none" />
+                <input className="input" name="title" placeholder="Boka flyg, packa väskan…" aria-label="Uppgift" required />
+                <div className="grid grid-cols-2 gap-3">
+                  <select className="input" name="assignee" aria-label="Vem" defaultValue="">
+                    <option value="">Vem som helst</option>
+                    {members.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
+                  </select>
+                  <input className="input" name="due_date" type="date" aria-label="Senast" max={e.start_date} />
+                </div>
+                <div className="grid grid-cols-2 items-center gap-3">
+                  <input className="input" name="points" inputMode="numeric" defaultValue="5" aria-label="Poäng (barn)" />
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requires_photo" className="size-5 accent-[var(--accent)]" /> Kräver foto</label>
+                </div>
+                <SubmitButton>Lägg till</SubmitButton>
+              </StatefulForm>
+            </details>
+          )}
+        </Section>
+      )}
 
       {e.notes && <section className="card whitespace-pre-wrap leading-relaxed">{e.notes}</section>}
 
@@ -112,6 +253,10 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                   {goals.filter((g) => !g.archived || g.id === e.goal_id).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
               </div>
+              <OwnerSelect members={members.filter((m) => m.role === "parent")} defaultValue={e.owner ?? ""} label="Planerar" />
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" name="booked" defaultChecked={e.booked} className="size-5 accent-[var(--accent)]" /> Bokat
+              </label>
               <SubmitButton>Spara</SubmitButton>
             </StatefulForm>
           </AddPanel>
