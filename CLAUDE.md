@@ -29,6 +29,7 @@ Minimalistiskt. Allt som inte hjälper någon att göra något tas bort.
 
 ## Regler
 - **UI-text på svenska.** Kort, vardagligt, inga tankstreck i löptext.
+- **Engelska finns också.** All UI-text går genom `t("svensk text")` (`getI18n()` i serverkomponenter, `useI18n()` i klientkomponenter) och får en rad i `lib/i18n/en.ts`. Variabler skrivs `{namn}`. `npm run test:unit` fallerar om en översättning saknas.
 - **Mobil först.** Testa i 390 px bredd. Inget som scrollar i sidled.
 - **Behörigheter sitter i databasen.** Varje ny tabell får `family_id` med `default public.my_family()` och RLS-policies. Barn får aldrig se pengar. Kolla alltid också `requireParent()` i server actions som bara vuxna får köra.
 - **Ändra aldrig en migration som redan körts.** Skapa en ny fil: `supabase/migrations/0002_beskrivning.sql`. Nämn i PR:en att den måste köras i Supabase.

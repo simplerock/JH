@@ -27,7 +27,11 @@ export type AgendaSource = {
   projects: Project[];
 };
 
-export function buildAgenda(src: AgendaSource, today: string): AgendaItem[] {
+type T = (text: string, vars?: Record<string, string | number>) => string;
+const sv: T = (text, vars) => (vars ? text.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k])) : text);
+
+/** t översätter rubrikerna som agendan själv skriver. Kalenderprenumerationen använder svenska. */
+export function buildAgenda(src: AgendaSource, today: string, t: T = sv): AgendaItem[] {
   const items: AgendaItem[] = [];
   for (const e of src.events) {
     items.push({
@@ -47,7 +51,7 @@ export function buildAgenda(src: AgendaSource, today: string): AgendaItem[] {
       items.push({
         key: `f-${e.id}-${i}`,
         kind: "trip",
-        title: ["Flyg", f.flight_no, f.depart && `kl ${f.depart}`].filter(Boolean).join(" ") + (route ? `, ${route}` : ""),
+        title: [t("Flyg"), f.flight_no, f.depart && t("kl {time}", { time: f.depart })].filter(Boolean).join(" ") + (route ? `, ${route}` : ""),
         date: f.date,
         end: null,
         href: `/kalender/${e.id}`,
@@ -75,7 +79,7 @@ export function buildAgenda(src: AgendaSource, today: string): AgendaItem[] {
   }
   for (const g of src.goals) {
     if (!g.due_date || g.archived) continue;
-    items.push({ key: `g-${g.id}`, kind: "goal", title: `Deadline: ${g.title}`, date: g.due_date, end: null, href: "/mal", owner: g.owner, important: true });
+    items.push({ key: `g-${g.id}`, kind: "goal", title: t("Deadline: {title}", { title: g.title }), date: g.due_date, end: null, href: "/mal", owner: g.owner, important: true });
   }
   return items.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "sv"));
 }

@@ -124,3 +124,34 @@ test("Joey ger extra poäng och Haylee ser dem", async ({ browser }) => {
   await dad.getByRole("button", { name: "Ta bort extra poäng" }).click();
   await expect(dad.getByText("Inga extra poäng den här veckan.")).toBeVisible();
 });
+
+test("Joey byter till engelska och tillbaka", async ({ browser }) => {
+  await dad.goto("/familj");
+  await dad.getByRole("radio", { name: "English" }).click();
+  await expect(dad.locator("html")).toHaveAttribute("lang", "en");
+  await expect(dad.getByRole("heading", { name: "Appearance" })).toBeVisible();
+  await expect(dad.getByRole("link", { name: "Home" })).toBeVisible();
+
+  await dad.goto("/poang");
+  await expect(dad.getByRole("heading", { name: "Points and rewards" })).toBeVisible();
+  await expect(dad.getByText("Picks the restaurant for Saturday dinner, max 1200 kr")).toBeVisible();
+  await dad.goto("/rutiner?vem=alla");
+  await dad.locator("summary", { hasText: "New chore" }).click();
+  await dad.getByLabel("What needs doing?").fill("Water the plants");
+  await dad.getByLabel("How often").selectOption({ label: "Every week" });
+  await dad.getByRole("button", { name: "Add" }).click();
+  await expect(dad.getByText("Added")).toBeVisible();
+  await shot(dad, "vuxna-engelska");
+
+  await dad.goto("/familj");
+  await dad.getByRole("radio", { name: "Svenska" }).click();
+  await expect(dad.locator("html")).toHaveAttribute("lang", "sv");
+  await expect(dad.getByRole("heading", { name: "Utseende" })).toBeVisible();
+
+  // Inloggningssidan har också språkval, så att barnen kan välja innan de loggar in.
+  const guest = await (await browser.newContext()).newPage();
+  await guest.goto("/login");
+  await guest.getByRole("radio", { name: "English" }).click();
+  await expect(guest.getByRole("button", { name: "Child" })).toBeVisible();
+  await expect(guest.getByLabel("Email")).toBeVisible();
+});

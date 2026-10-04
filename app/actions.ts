@@ -12,7 +12,8 @@ import { FoundEvent } from "@/lib/events-import";
 import { mergeDetails, readDetails, SUPPORTED, TripExtraction } from "@/lib/trip";
 import type { ChecklistItem, FamilyEvent, ProjectStatus, Recurrence } from "@/lib/types";
 
-export type FormState = { error?: string; ok?: string } | undefined;
+/** Meddelanden skrivs på svenska och översätts där de visas. vars fyller i {namn} i texten. */
+export type FormState = { error?: string; ok?: string; vars?: Record<string, string | number> } | undefined;
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const optStr = (f: FormData, k: string) => str(f, k) || null;
@@ -130,7 +131,7 @@ export async function createChild(_: FormState, form: FormData): Promise<FormSta
       return fail(profileError);
     }
     refresh();
-    return { ok: `${name} kan nu logga in med ${username} och sin PIN.` };
+    return { ok: "{name} kan nu logga in med {username} och sin PIN.", vars: { name, username } };
   } catch (e) {
     return fail(e);
   }
@@ -274,7 +275,7 @@ export async function giveExtraPoints(_: FormState, form: FormData): Promise<For
   const { error } = await supabase.from("point_adjustments").insert({ kid_id: str(form, "kid_id"), points, reason, created_by: user.id });
   if (error) return fail(error);
   refresh();
-  return { ok: points > 0 ? `+${points} p` : `${points} p` };
+  return { ok: "{n} p", vars: { n: points > 0 ? `+${points}` : points } };
 }
 
 export async function deleteExtraPoints(form: FormData) {
@@ -294,6 +295,12 @@ export async function releaseTask(form: FormData) {
   const { supabase } = await getSession();
   const { error } = await supabase.rpc("release_task", { tid: str(form, "id") });
   if (error) throw new Error(error.message);
+  refresh();
+}
+
+export async function setLang(form: FormData) {
+  const lang = str(form, "lang");
+  if (lang === "sv" || lang === "en") (await cookies()).set("lang", lang, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   refresh();
 }
 
@@ -721,5 +728,5 @@ export async function saveFoundEvents(_: FormState, form: FormData): Promise<For
   const { error } = await supabase.from("events").insert(rows);
   if (error) return fail(error);
   refresh();
-  return { ok: rows.length === 1 ? "1 händelse ligger nu i kalendern." : `${rows.length} händelser ligger nu i kalendern.` };
+  return rows.length === 1 ? { ok: "1 händelse ligger nu i kalendern." } : { ok: "{n} händelser ligger nu i kalendern.", vars: { n: rows.length } };
 }

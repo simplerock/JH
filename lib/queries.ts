@@ -2,6 +2,7 @@ import "server-only";
 import { buildAgenda } from "./agenda";
 import { today, weekStartInstant } from "./dates";
 import { currentPeriods } from "./progress";
+import { getI18n } from "./i18n/server";
 import { getSession } from "./session";
 import type { Completion, FamilyEvent, Goal, MaintenanceItem, PointAdjustment, Profile, Project, RewardLevel, Task } from "./types";
 
@@ -65,6 +66,6 @@ export async function signedPhotoUrls(paths: string[]): Promise<Map<string, stri
 /** Händelser som pågår eller kommer, plus agendan för hela familjen. */
 export async function loadAgenda() {
   const d = today();
-  const [data, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
-  return { ...data, events, agenda: buildAgenda({ events, tasks: data.tasks, maintenance: data.maintenance, goals: data.goals, projects: data.projects }, d) };
+  const [data, events, { t }] = await Promise.all([loadFamilyData(), loadEvents(d), getI18n()]);
+  return { ...data, events, agenda: buildAgenda({ events, tasks: data.tasks, maintenance: data.maintenance, goals: data.goals, projects: data.projects }, d, t) };
 }

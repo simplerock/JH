@@ -78,8 +78,8 @@ test("förälder sätter upp familjen", async ({ page }) => {
   await add("Diska", "Varje dag", "Kök", "Anna");
   await add("Dammsuga", "Varje vecka", "Vardagsrum", "Ella");
   await add("Städa badrummet", "Varje vecka", "Badrum", "Anna");
-  await add("Byta lakan", "Varje vecka", "Sovrum", "Ledig, barnen väljer");
-  await add("Rensa ogräs", "En gång", "Ute", "Ledig, barnen väljer", "Fixa trädgården");
+  await add("Byta lakan", "Varje vecka", "Sovrum", "Ledig syssla");
+  await add("Rensa ogräs", "En gång", "Ute", "Ledig syssla", "Fixa trädgården");
   await add("Klippa häcken", "En gång", "Ute", "Anna", "Fixa trädgården");
 
   await page.getByRole("button", { name: "Bocka av Diska" }).click();

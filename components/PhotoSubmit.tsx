@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { submitCompletion } from "@/app/actions";
 import { browserClient } from "@/lib/supabase/client";
+import { useI18n } from "./I18nProvider";
 
 /** Skalar ner bilden i webbläsaren så att uppladdningen går snabbt även på mobilnät. */
 async function shrink(file: File, max = 1280): Promise<Blob> {
@@ -23,6 +24,7 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
   const input = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   function onFile(file: File | undefined) {
     if (!file) return;
@@ -39,7 +41,7 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
         form.set("photo_path", path);
         await submitCompletion(form);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Det gick inte att skicka fotot");
+        setError(e instanceof Error ? t(e.message) : t("Det gick inte att skicka fotot"));
       }
     });
   }
@@ -50,7 +52,7 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
         type="button"
         onClick={() => input.current?.click()}
         disabled={pending}
-        aria-label={`Ta foto och skicka ${title}`}
+        aria-label={t("Ta foto och skicka {title}", { title })}
         className={`flex size-[26px] items-center justify-center rounded-full border-2 border-line text-muted transition active:scale-90 ${pending ? "animate-pulse" : ""}`}
       >
         <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -70,7 +72,7 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
         onChange={(e) => onFile(e.target.files?.[0])}
       />
       {error && <span className="sr-only" role="alert">{error}</span>}
-      {pending && <span className="sr-only" role="status">{redo ? "Skickar igen" : "Skickar"}</span>}
+      {pending && <span className="sr-only" role="status">{redo ? t("Skickar igen") : t("Skickar")}</span>}
     </>
   );
 }

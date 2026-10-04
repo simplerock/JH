@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { childSignIn, signIn, signUp } from "@/app/actions";
 import { StatefulForm, SubmitButton } from "@/components/Forms";
+import { useI18n } from "@/components/I18nProvider";
 
 type Mode = "parent" | "child" | "signup";
 
 export function LoginTabs() {
   const [mode, setMode] = useState<Mode>("parent");
+  const { t } = useI18n();
   const tab = (m: Mode, label: string) => (
     <button
       type="button"
@@ -22,33 +24,33 @@ export function LoginTabs() {
   return (
     <div className="card">
       <div className="mb-5 flex gap-1 rounded-xl bg-track p-1">
-        {tab("parent", "Vuxen")}
-        {tab("child", "Barn")}
-        {tab("signup", "Nytt konto")}
+        {tab("parent", t("Vuxen"))}
+        {tab("child", t("Barn"))}
+        {tab("signup", t("Nytt konto"))}
       </div>
 
       {mode === "parent" && (
         <StatefulForm action={signIn} key="parent" resetOnOk={false}>
           <div>
-            <label className="label" htmlFor="email">E-post</label>
+            <label className="label" htmlFor="email">{t("E-post")}</label>
             <input className="input" id="email" name="email" type="email" autoComplete="email" required />
           </div>
           <div>
-            <label className="label" htmlFor="password">Lösenord</label>
+            <label className="label" htmlFor="password">{t("Lösenord")}</label>
             <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
           </div>
-          <SubmitButton>Logga in</SubmitButton>
+          <SubmitButton>{t("Logga in")}</SubmitButton>
         </StatefulForm>
       )}
 
       {mode === "child" && (
         <StatefulForm action={childSignIn} key="child" resetOnOk={false}>
           <div>
-            <label className="label" htmlFor="username">Ditt namn</label>
+            <label className="label" htmlFor="username">{t("Ditt namn")}</label>
             <input className="input" id="username" name="username" autoCapitalize="none" autoComplete="username" required />
           </div>
           <div>
-            <label className="label" htmlFor="pin">PIN-kod</label>
+            <label className="label" htmlFor="pin">{t("PIN-kod")}</label>
             <input
               className="input text-center text-2xl tracking-[0.5em]"
               id="pin"
@@ -60,22 +62,22 @@ export function LoginTabs() {
               required
             />
           </div>
-          <SubmitButton>Logga in</SubmitButton>
+          <SubmitButton>{t("Logga in")}</SubmitButton>
         </StatefulForm>
       )}
 
       {mode === "signup" && (
         <StatefulForm action={signUp} key="signup" resetOnOk={false}>
-          <p className="text-sm text-muted">För vuxna. Barnkonton skapar du sen inne i appen.</p>
+          <p className="text-sm text-muted">{t("För vuxna. Barnkonton skapar du sen inne i appen.")}</p>
           <div>
-            <label className="label" htmlFor="su-email">E-post</label>
+            <label className="label" htmlFor="su-email">{t("E-post")}</label>
             <input className="input" id="su-email" name="email" type="email" autoComplete="email" required />
           </div>
           <div>
-            <label className="label" htmlFor="su-password">Lösenord</label>
+            <label className="label" htmlFor="su-password">{t("Lösenord")}</label>
             <input className="input" id="su-password" name="password" type="password" minLength={6} autoComplete="new-password" required />
           </div>
-          <SubmitButton>Skapa konto</SubmitButton>
+          <SubmitButton>{t("Skapa konto")}</SubmitButton>
         </StatefulForm>
       )}
     </div>

@@ -4,7 +4,7 @@ import { GoalCard } from "@/components/GoalCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
-import { daysBetween, formatRange, today } from "@/lib/dates";
+import { daysBetween, today } from "@/lib/dates";
 import { countdown, formatNumber } from "@/lib/format";
 import { goalProgress, isDone, maintenanceDue, taskProgress } from "@/lib/progress";
 import { loadAgenda } from "@/lib/queries";
@@ -18,17 +18,20 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { weekStart, addDays } from "@/lib/dates";
 import { currentCompletion, levelFor } from "@/lib/progress";
 import { signedPhotoUrls } from "@/lib/queries";
+import { getI18n } from "@/lib/i18n/server";
+import type { I18n } from "@/lib/i18n";
 
-function greeting() {
+function greeting(t: I18n["t"]) {
   const h = Number(new Intl.DateTimeFormat("sv-SE", { hour: "numeric", timeZone: "Europe/Stockholm" }).format(new Date()));
-  return h < 10 ? "God morgon" : h < 18 ? "Hej" : "God kväll";
+  return h < 10 ? t("God morgon") : h < 18 ? t("Hej") : t("God kväll");
 }
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ visa?: string }> }) {
   const { visa } = await searchParams;
   const range: RangeKey = visa && visa in RANGES ? (visa as RangeKey) : "vecka";
   const d = today();
-  const data = await loadAgenda();
+  const [data, i18n] = await Promise.all([loadAgenda(), getI18n()]);
+  const { t } = i18n;
   const { events, agenda } = data;
   const [from, to] = rangeDates(range, d, weekStart(d));
   const upcoming = byDay(inRange(agenda.filter((i) => i.important && i.kind !== "maintenance"), from, to, d), from);
@@ -63,16 +66,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
   const row = (t: (typeof tasks)[number]) => (
     <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={byId.get(t.assignee ?? "")} />
   );
-  const dateLabel = new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Stockholm" }).format(new Date());
+  const dateLabel = new Intl.DateTimeFormat(i18n.locale, { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Stockholm" }).format(new Date());
 
   return (
     <>
       <header className="flex items-start justify-between">
         <div>
           <p className="text-sm capitalize text-muted">{dateLabel}</p>
-          <h1 className="text-[28px] font-bold leading-tight tracking-tight">{greeting()} {profile.display_name}</h1>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">{greeting(t)} {profile.display_name}</h1>
         </div>
-        <Link href="/familj" aria-label="Familj">
+        <Link href="/familj" aria-label={t("Familj")}>
           <Avatar name={profile.display_name} color={profile.color} size={36} />
         </Link>
       </header>
@@ -83,19 +86,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
 
       {vacation && (
         <Link href={`/kalender/${vacation.id}`} className="flex flex-col rounded-2xl bg-accent-soft p-4">
-          <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date))}</span>
+          <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date), t)}</span>
           <span className="text-xl font-bold">{vacation.title}</span>
-          <span className="text-sm text-muted">{formatRange(vacation.start_date, vacation.end_date)}</span>
+          <span className="text-sm text-muted">{i18n.range(vacation.start_date, vacation.end_date)}</span>
         </Link>
       )}
 
       {isParent && (addDays(weekStart(d), 6) === d || weekStart(d) === d) && (
         <Link href="/vecka" className="flex items-center justify-between rounded-2xl bg-card px-4 py-3.5">
           <span>
-            <span className="block font-semibold">Veckans genomgång</span>
-            <span className="text-[13px] text-muted">Poäng, förmåner och veckan som kommer</span>
+            <span className="block font-semibold">{t("Veckans genomgång")}</span>
+            <span className="text-[13px] text-muted">{t("Poäng, förmåner och veckan som kommer")}</span>
           </span>
-          <span className="text-sm font-medium text-accent">Öppna</span>
+          <span className="text-sm font-medium text-accent">{t("Öppna")}</span>
         </Link>
       )}
 
@@ -109,20 +112,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="section-title mb-0">Familjens kalender</h2>
+        <h2 className="section-title mb-0">{t("Familjens kalender")}</h2>
         <RangeChips active={range} base="/" />
-        <Agenda days={upcoming} today={d} members={members} empty={range === "vecka" ? "Inget särskilt resten av veckan." : "Inget inplanerat."} />
+        <Agenda days={upcoming} today={d} members={members} empty={range === "vecka" ? t("Inget särskilt resten av veckan.") : t("Inget inplanerat.")} />
       </section>
 
       {myTasks.length > 0 && (
-        <Section title="Att göra" aside={`${taskProgress(myTasks, completions).done} av ${myTasks.length} klara`}>
-          {open.length === 0 && <Empty>{waiting.length ? "Allt inskickat. Snyggt." : "Allt klart. Snyggt."}</Empty>}
+        <Section title={t("Att göra")} aside={t("{done} av {total} klara", { done: taskProgress(myTasks, completions).done, total: myTasks.length })}>
+          {open.length === 0 && <Empty>{waiting.length ? t("Allt inskickat. Snyggt.") : t("Allt klart. Snyggt.")}</Empty>}
           {open.map(row)}
           {closed.length > 0 && (
             <details className="group/done">
               <summary className="cursor-pointer list-none py-3 text-sm text-muted">
-                <span className="group-open/done:hidden">Visa klara ({closed.length})</span>
-                <span className="hidden group-open/done:inline">Dölj klara</span>
+                <span className="group-open/done:hidden">{t("Visa klara ({n})", { n: closed.length })}</span>
+                <span className="hidden group-open/done:inline">{t("Dölj klara")}</span>
               </summary>
               <div className="border-t border-line">
                 {closed.map(row)}
@@ -134,10 +137,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
 
       {!isParent && <FreeChores tasks={freeChores(tasks)} />}
 
-      {waiting.length > 0 && <Section title="Väntar på mamma eller pappa">{waiting.map(row)}</Section>}
+      {waiting.length > 0 && <Section title={t("Väntar på mamma eller pappa")}>{waiting.map(row)}</Section>}
 
       {isParent && kids.length > 0 && (
-        <Section title="Barnens vecka">
+        <Section title={t("Barnens vecka")}>
           {kids.map((k) => {
             const pts = kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points;
             const { level, lowest } = levelFor(pts, levels);
@@ -155,22 +158,22 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
       )}
 
       {myMaint.length > 0 && (
-        <Section title="Underhåll snart">
+        <Section title={t("Underhåll snart")}>
           {myMaint.map(({ m, due }) => <MaintenanceRow key={m.id} item={m} d={due} />)}
         </Section>
       )}
 
       {myProjects.length > 0 && (
-        <Section title="Dina projekt">
+        <Section title={t("Dina projekt")}>
           {myProjects.map((p) => {
             const steps = tasks.filter((t) => t.project_id === p.id);
             const sp = taskProgress(steps, completions);
             return (
               <Link key={p.id} href="/hemmet" className="block py-4">
-                <ProgressBar ratio={sp.ratio} label={p.title} detail={steps.length ? `${sp.done} av ${sp.total} steg` : "Inga steg än"} />
+                <ProgressBar ratio={sp.ratio} label={p.title} detail={steps.length ? t("{done} av {total} steg", { done: sp.done, total: sp.total }) : t("Inga steg än")} />
                 {p.budget ? (
                   <p className={`mt-1.5 text-[13px] ${Number(p.spent) > Number(p.budget) ? "text-warn" : "text-muted"}`}>
-                    {formatNumber(Number(p.spent))} av {formatNumber(Number(p.budget))} kr
+                    {t("{done} av {total} kr", { done: formatNumber(Number(p.spent)), total: formatNumber(Number(p.budget)) })}
                   </p>
                 ) : null}
               </Link>
@@ -180,27 +183,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
       )}
 
       {myGoals.length > 0 && (
-        <Section title="Dina mål">
+        <Section title={t("Dina mål")}>
           {myGoals.map((g) => <GoalCard key={g.id} goal={g} progress={goalProgress(g, tasks, completions)} />)}
         </Section>
       )}
 
       {nothing && (
         <Section>
-          <Empty>Inget på ditt ansvar just nu.{isParent && " Fördela sysslor under Rutiner och ansvar under Mål och Hemmet."}</Empty>
+          <Empty>{t("Inget på ditt ansvar just nu.")}{isParent && ` ${t("Fördela sysslor under Rutiner och ansvar under Mål och Hemmet.")}`}</Empty>
         </Section>
       )}
 
       {isParent && orphans > 0 && (
         <p className="px-1 text-sm text-muted">
-          {orphans === 1 ? "1 sak saknar ansvarig." : `${orphans} saker saknar ansvarig.`}{" "}
-          <Link href={houseOrphans ? "/hemmet" : "/mal"} className="font-medium text-accent">Fördela</Link>
+          {orphans === 1 ? t("1 sak saknar ansvarig.") : t("{n} saker saknar ansvarig.", { n: orphans })}{" "}
+          <Link href={houseOrphans ? "/hemmet" : "/mal"} className="font-medium text-accent">{t("Fördela")}</Link>
         </p>
       )}
 
       {members.length === 1 && isParent && (
         <p className="px-1 text-sm text-muted">
-          Lägg till resten av familjen under <Link href="/familj" className="font-medium text-accent">Familj</Link>.
+          {t("Lägg till resten av familjen under")} <Link href="/familj" className="font-medium text-accent">{t("Familj")}</Link>.
         </p>
       )}
     </>

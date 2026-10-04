@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { RegisterSW } from "@/components/RegisterSW";
+import { I18nProvider } from "@/components/I18nProvider";
+import { getLang } from "@/lib/i18n/server";
 import { getTheme } from "@/lib/theme";
 import "./globals.css";
 
@@ -29,11 +31,11 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const theme = await getTheme();
+  const [theme, lang] = await Promise.all([getTheme(), getLang()]);
   return (
-    <html lang="sv" data-theme={theme === "system" ? undefined : theme}>
+    <html lang={lang} data-theme={theme === "system" ? undefined : theme}>
       <body className="min-h-dvh antialiased">
-        {children}
+        <I18nProvider lang={lang}>{children}</I18nProvider>
         <RegisterSW />
       </body>
     </html>

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Section } from "@/components/Section";
-import { formatRange, monthRange, today } from "@/lib/dates";
+import { monthRange, today } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import { formatNumber } from "@/lib/format";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import { kidWeek } from "@/lib/score";
 import { getSession } from "@/lib/session";
-
 
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
   return (
@@ -23,7 +23,7 @@ function Row({ href, title, sub }: { href: string; title: string; sub: string })
 
 export default async function MorePage() {
   const d = today();
-  const { supabase, isParent: parent } = await getSession();
+  const [{ supabase, isParent: parent }, { t, range }] = await Promise.all([getSession(), getI18n()]);
   const [from, to] = monthRange(d.slice(0, 7));
   // Allt hämtas samtidigt. Budgeten bara för vuxna.
   const [{ members, family, isParent, tasks, completions, weekFrom, adjustments }, events, cats, tx] = await Promise.all([
@@ -38,22 +38,22 @@ export default async function MorePage() {
   if (isParent) {
     const limit = (cats.data ?? []).reduce((a, c) => a + Number(c.monthly_limit), 0);
     const spent = (tx.data ?? []).reduce((a, t) => a + Number(t.amount), 0);
-    budgetSub = limit > 0 ? `${formatNumber(limit - spent)} kr kvar den här månaden` : "Ingen budget än";
+    budgetSub = limit > 0 ? t("{n} kr kvar den här månaden", { n: formatNumber(limit - spent) }) : t("Ingen budget än");
   }
 
   return (
     <>
-      <PageHeader title="Mer" />
+      <PageHeader title={t("Mer")} />
       <Section>
-        <Row href="/kalender" title="Kalender" sub={next ? `Nästa: ${next.title}, ${formatRange(next.start_date, next.end_date)}` : "Inget inplanerat"} />
-        {isParent && <Row href="/vecka" title="Veckans genomgång" sub="Veckan som gått och veckan som kommer" />}
+        <Row href="/kalender" title={t("Kalender")} sub={next ? t("Nästa: {title}, {when}", { title: next.title, when: range(next.start_date, next.end_date) }) : t("Inget inplanerat")} />
+        {isParent && <Row href="/vecka" title={t("Veckans genomgång")} sub={t("Veckan som gått och veckan som kommer")} />}
         <Row
           href="/poang"
-          title="Poäng och förmåner"
-          sub={members.filter((m) => m.role === "child").map((k) => `${k.display_name} ${kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points} p`).join(", ") || "Nivåer och förmåner"}
+          title={t("Poäng och förmåner")}
+          sub={members.filter((m) => m.role === "child").map((k) => `${k.display_name} ${kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points} p`).join(", ") || t("Nivåer och förmåner")}
         />
-        {isParent && <Row href="/budget" title="Budget" sub={budgetSub} />}
-        <Row href="/familj" title={family.name} sub={`${members.map((m) => m.display_name).join(", ")} · profil och utseende`} />
+        {isParent && <Row href="/budget" title={t("Budget")} sub={budgetSub} />}
+        <Row href="/familj" title={family.name} sub={`${members.map((m) => m.display_name).join(", ")} · ${t("profil och utseende")}`} />
       </Section>
     </>
   );

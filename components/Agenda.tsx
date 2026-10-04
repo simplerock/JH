@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { AgendaItem, RangeKey } from "@/lib/agenda";
 import { RANGE_ORDER, RANGES } from "@/lib/agenda";
-import { addDays, formatDate } from "@/lib/dates";
+import { addDays } from "@/lib/dates";
+import type { I18n } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 
@@ -15,17 +17,18 @@ const KIND: Record<AgendaItem["kind"], string> = {
   project: "Projekt",
 };
 
-function dayLabel(day: string, today: string) {
-  if (day === today) return "Idag";
-  if (day === addDays(today, 1)) return "Imorgon";
+function dayLabel(day: string, today: string, { t, locale }: I18n) {
+  if (day === today) return t("Idag");
+  if (day === addDays(today, 1)) return t("Imorgon");
   const [y, m, d] = day.split("-").map(Number);
-  return new Intl.DateTimeFormat("sv-SE", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+  return new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 /** Filterknappar: den här veckan, nästa vecka, 30 dagar, 3 månader. */
-export function RangeChips({ active, base }: { active: RangeKey; base: string }) {
+export async function RangeChips({ active, base }: { active: RangeKey; base: string }) {
+  const { t } = await getI18n();
   return (
-    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Visa">
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label={t("Visa")}>
       {RANGE_ORDER.map((k) => (
         <Link
           key={k}
@@ -34,7 +37,7 @@ export function RangeChips({ active, base }: { active: RangeKey; base: string })
           aria-current={active === k ? "true" : undefined}
           className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${active === k ? "bg-ink text-bg" : "bg-track text-muted"}`}
         >
-          {RANGES[k].label}
+          {t(RANGES[k].label)}
         </Link>
       ))}
     </div>
@@ -42,14 +45,16 @@ export function RangeChips({ active, base }: { active: RangeKey; base: string })
 }
 
 /** Agendan dag för dag. */
-export function Agenda({ days, today, members, empty }: { days: Map<string, AgendaItem[]>; today: string; members: Profile[]; empty: string }) {
+export async function Agenda({ days, today, members, empty }: { days: Map<string, AgendaItem[]>; today: string; members: Profile[]; empty: string }) {
+  const i18n = await getI18n();
+  const { t } = i18n;
   const byId = new Map(members.map((m) => [m.id, m]));
   if (days.size === 0) return <p className="rounded-2xl bg-card px-4 py-4 text-muted">{empty}</p>;
   return (
     <div className="flex flex-col gap-4">
       {[...days.entries()].map(([day, items]) => (
         <section key={day}>
-          <h3 className={`mb-1.5 px-1 text-[13px] font-semibold capitalize ${day === today ? "text-accent" : "text-muted"}`}>{dayLabel(day, today)}</h3>
+          <h3 className={`mb-1.5 px-1 text-[13px] font-semibold capitalize ${day === today ? "text-accent" : "text-muted"}`}>{dayLabel(day, today, i18n)}</h3>
           <div className="group">
             {items.map((i) => {
               const owner = i.owner ? byId.get(i.owner) : undefined;
@@ -63,9 +68,9 @@ export function Agenda({ days, today, members, empty }: { days: Map<string, Agen
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{i.title}</p>
                     <p className={`text-[13px] ${late ? "text-warn" : "text-muted"}`}>
-                      {KIND[i.kind]}
-                      {i.end ? ` · till ${formatDate(i.end)}` : ""}
-                      {late ? " · dags nu" : ""}
+                      {t(KIND[i.kind])}
+                      {i.end ? ` · ${t("till {date}", { date: i18n.date(i.end) })}` : ""}
+                      {late ? ` · ${t("dags nu")}` : ""}
                     </p>
                   </div>
                   {owner && <Avatar name={owner.display_name} color={owner.color} size={22} />}

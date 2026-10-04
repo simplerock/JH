@@ -1,6 +1,6 @@
 import { Camera, X } from "lucide-react";
 import { deleteTask, releaseTask, submitCompletion, toggleTask } from "@/app/actions";
-import { formatDate, recurrenceLabel } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import type { Completion, Profile, Task } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { PhotoSubmit } from "./PhotoSubmit";
@@ -25,7 +25,8 @@ const Tick = () => (
 
 const circle = "flex size-[26px] items-center justify-center rounded-full border-2 transition";
 
-export function TaskRow({ task, completion, me, assignee, showAssignee, canDelete, plain }: Props) {
+export async function TaskRow({ task, completion, me, assignee, showAssignee, canDelete, plain }: Props) {
+  const { t, date, recurrence } = await getI18n();
   const status = completion?.status;
   const done = status === "approved";
   const kidTask = assignee?.role === "child";
@@ -33,11 +34,11 @@ export function TaskRow({ task, completion, me, assignee, showAssignee, canDelet
   const mine = task.assignee === me.id || (!task.assignee && !isParent);
   const sub = plain
     ? null
-    : [task.area, task.due_date ? `senast ${formatDate(task.due_date)}` : recurrenceLabel[task.recurrence]].filter(Boolean).join(" · ");
+    : [task.area, task.due_date ? t("senast {date}", { date: date(task.due_date) }) : recurrence(task.recurrence)].filter(Boolean).join(" · ");
 
   let mark;
   if (status === "pending") {
-    mark = <span className={`${circle} border-dashed border-wait`} aria-label={`${task.title} väntar på godkännande`} role="img" />;
+    mark = <span className={`${circle} border-dashed border-wait`} aria-label={t("{title} väntar på godkännande", { title: task.title })} role="img" />;
   } else if (!isParent && mine && !done && task.requires_photo) {
     // Barnet: foto krävs
     mark = <PhotoSubmit taskId={task.id} recurrence={task.recurrence} familyId={me.family_id} title={task.title} redo={status === "redo"} />;
@@ -47,7 +48,7 @@ export function TaskRow({ task, completion, me, assignee, showAssignee, canDelet
       <form action={submitCompletion}>
         <input type="hidden" name="id" value={task.id} />
         <input type="hidden" name="recurrence" value={task.recurrence} />
-        <button aria-label={`Klar med ${task.title}`} className={`${circle} border-line active:scale-90`} />
+        <button aria-label={t("Klar med {title}", { title: task.title })} className={`${circle} border-line active:scale-90`} />
       </form>
     );
   } else {
@@ -60,7 +61,7 @@ export function TaskRow({ task, completion, me, assignee, showAssignee, canDelet
         <input type="hidden" name="done" value={String(done)} />
         <button
           disabled={!can}
-          aria-label={done ? `Ångra ${task.title}` : `Bocka av ${task.title}`}
+          aria-label={done ? t("Ångra {title}", { title: task.title }) : t("Bocka av {title}", { title: task.title })}
           className={`${circle} ${done ? "border-accent bg-accent text-accent-ink" : "border-line"} ${can ? "active:scale-90" : done ? "" : "opacity-35"}`}
         >
           {done && <Tick />}
@@ -82,26 +83,26 @@ export function TaskRow({ task, completion, me, assignee, showAssignee, canDelet
         )}
       </div>
       {status === "pending" ? (
-        <span className="rounded-full bg-wait-soft px-2 py-0.5 text-xs font-semibold text-wait">Väntar</span>
+        <span className="rounded-full bg-wait-soft px-2 py-0.5 text-xs font-semibold text-wait">{t("Väntar")}</span>
       ) : status === "redo" ? (
-        <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">Gör om</span>
+        <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">{t("Gör om")}</span>
       ) : kidTask && task.points > 0 ? (
         <span className="flex items-center gap-1 text-[13px] font-semibold tabular-nums text-muted">
-          {task.requires_photo && <Camera size={14} aria-label="Kräver foto" />}
+          {task.requires_photo && <Camera size={14} aria-label={t("Kräver foto")} />}
           {task.points} p
         </span>
       ) : null}
       {!isParent && task.claimed_at && task.assignee === me.id && !status && (
         <form action={releaseTask}>
           <input type="hidden" name="id" value={task.id} />
-          <button className="text-[13px] font-medium text-muted underline-offset-2 active:underline" aria-label={`Släpp ${task.title}`}>Släpp</button>
+          <button className="text-[13px] font-medium text-muted underline-offset-2 active:underline" aria-label={t("Släpp {title}", { title: task.title })}>{t("Släpp")}</button>
         </form>
       )}
       {showAssignee && assignee && <Avatar name={assignee.display_name} color={assignee.color} size={22} />}
       {canDelete && (
         <form action={deleteTask}>
           <input type="hidden" name="id" value={task.id} />
-          <button aria-label={`Ta bort ${task.title}`} className="p-1 text-muted">
+          <button aria-label={t("Ta bort {title}", { title: task.title })} className="p-1 text-muted">
             <X size={15} />
           </button>
         </form>

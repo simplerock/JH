@@ -1,5 +1,6 @@
 import { setTheme } from "@/app/actions";
 import { Section } from "@/components/Section";
+import { getI18n } from "@/lib/i18n/server";
 import { getTheme, type Theme } from "@/lib/theme";
 
 const THEMES: [Theme, string][] = [
@@ -10,10 +11,10 @@ const THEMES: [Theme, string][] = [
 
 /** Ljust, mörkt eller samma som telefonen. Sparas i en cookie på den här enheten. */
 export async function ThemePicker() {
-  const theme = await getTheme();
+  const [theme, { t }] = await Promise.all([getTheme(), getI18n()]);
   return (
-    <Section title="Utseende">
-      <form action={setTheme} className="grid grid-cols-3 gap-1 py-3" role="radiogroup" aria-label="Utseende">
+    <Section title={t("Utseende")}>
+      <form action={setTheme} className="grid grid-cols-3 gap-1 py-3" role="radiogroup" aria-label={t("Utseende")}>
         {THEMES.map(([value, label]) => (
           <button
             key={value}
@@ -23,7 +24,7 @@ export async function ThemePicker() {
             aria-checked={theme === value}
             className={`rounded-xl px-2 py-2 text-sm font-medium transition ${theme === value ? "bg-accent text-accent-ink" : "bg-track text-ink"}`}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </form>

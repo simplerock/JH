@@ -1,29 +1,30 @@
 import { Camera } from "lucide-react";
 import { claimTask } from "@/app/actions";
-import { recurrenceLabel } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import type { Task } from "@/lib/types";
 import { Section } from "./Section";
 
 /** Lediga sysslor som barnet kan välja. Den som tar en syssla får den som sin. */
-export function FreeChores({ tasks }: { tasks: Task[] }) {
+export async function FreeChores({ tasks }: { tasks: Task[] }) {
   if (tasks.length === 0) return null;
+  const { t, recurrence } = await getI18n();
   return (
-    <Section title="Välj en syssla" aside={`${tasks.length} lediga`}>
-      {tasks.map((t) => (
-        <div key={t.id} className="flex min-h-14 items-center gap-3 py-3">
+    <Section title={t("Välj en syssla")} aside={t("{n} lediga", { n: tasks.length })}>
+      {tasks.map((task) => (
+        <div key={task.id} className="flex min-h-14 items-center gap-3 py-3">
           <div className="min-w-0 flex-1">
-            <p className="font-medium">{t.title}</p>
-            <p className="text-[13px] text-muted">{[t.area, recurrenceLabel[t.recurrence]].filter(Boolean).join(" · ")}</p>
+            <p className="font-medium">{task.title}</p>
+            <p className="text-[13px] text-muted">{[task.area, recurrence(task.recurrence)].filter(Boolean).join(" · ")}</p>
           </div>
-          {t.points > 0 && (
+          {task.points > 0 && (
             <span className="flex items-center gap-1 text-[13px] font-semibold tabular-nums text-muted">
-              {t.requires_photo && <Camera size={14} aria-label="Kräver foto" />}
-              {t.points} p
+              {task.requires_photo && <Camera size={14} aria-label={t("Kräver foto")} />}
+              {task.points} p
             </span>
           )}
           <form action={claimTask}>
-            <input type="hidden" name="id" value={t.id} />
-            <button className="btn-ghost" aria-label={`Ta ${t.title}`}>Ta den</button>
+            <input type="hidden" name="id" value={task.id} />
+            <button className="btn-ghost" aria-label={t("Ta {title}", { title: task.title })}>{t("Ta den")}</button>
           </form>
         </div>
       ))}

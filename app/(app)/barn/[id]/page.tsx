@@ -4,23 +4,24 @@ import { PageHeader } from "@/components/PageHeader";
 import { ScoreCard } from "@/components/ScoreCard";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
-import { addDays, daysBetween, formatDate, today, weekStart } from "@/lib/dates";
+import { addDays, daysBetween, today, weekStart } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import { currentCompletion, isDone } from "@/lib/progress";
 import { loadFamilyData, signedPhotoUrls } from "@/lib/queries";
 import { dailyPoints, kidWeek } from "@/lib/score";
 
-const DAYS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
 
 /** Ett barns vecka för föräldrarna: poäng dag för dag, vad som är kvar, väntar och klart. */
 export default async function KidPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile, members, tasks, completions, levels, adjustments, weekFrom, isParent } = await loadFamilyData();
+  const [{ profile, members, tasks, completions, levels, adjustments, weekFrom, isParent }, { t, date, locale }] = await Promise.all([loadFamilyData(), getI18n()]);
   const kid = members.find((m) => m.id === id && m.role === "child");
   if (!kid) notFound();
   if (!isParent && profile.id !== kid.id) redirect("/");
 
   const d = today();
   const monday = weekStart(d);
+  const dayName = (iso: string) => new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`)).replace(".", "");
   const week = kidWeek(kid.id, tasks, completions, weekFrom, { adjustments });
   const perDay = dailyPoints(kid.id, tasks, completions, adjustments, monday);
   const maxDay = Math.max(...perDay, 1);
@@ -39,22 +40,22 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
 
   return (
     <>
-      <PageHeader title={kid.display_name} back={isParent ? { href: "/poang", label: "Poäng" } : { href: "/", label: "Hem" }} />
+      <PageHeader title={kid.display_name} back={isParent ? { href: "/poang", label: t("Poäng") } : { href: "/", label: t("Hem") }} />
 
       <ScoreCard week={week} pendingPoints={pendingPoints} levels={levels} daysLeft={daysBetween(d, addDays(monday, 6))} />
 
-      <Section title="Veckan" aside={`${week.points} p`}>
-        <div className="grid grid-cols-7 items-end gap-1.5 py-4" role="list" aria-label="Poäng per dag">
+      <Section title={t("Veckan")} aside={`${week.points} p`}>
+        <div className="grid grid-cols-7 items-end gap-1.5 py-4" role="list" aria-label={t("Poäng per dag")}>
           {perDay.map((p, i) => {
             const day = addDays(monday, i);
             const future = day > d;
             return (
-              <div key={day} role="listitem" aria-label={`${DAYS[i]}: ${p} poäng`} className="flex flex-col items-center gap-1">
+              <div key={day} role="listitem" aria-label={t("{day}: {n} poäng", { day: dayName(day), n: p })} className="flex flex-col items-center gap-1">
                 <span className="text-xs font-semibold tabular-nums text-muted">{future ? "" : p}</span>
                 <div className="flex h-20 w-full items-end rounded-md bg-track">
                   <div className={`w-full rounded-md ${p < 0 ? "bg-warn" : "bg-accent"}`} style={{ height: `${(Math.abs(p) / maxDay) * 100}%` }} />
                 </div>
-                <span className={`text-[11px] ${day === d ? "font-bold text-ink" : "text-muted"}`}>{DAYS[i]}</span>
+                <span className={`text-[11px] ${day === d ? "font-bold text-ink" : "text-muted"}`}>{dayName(day)}</span>
               </div>
             );
           })}
@@ -65,24 +66,24 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
         <Approvals items={pending.map((c) => ({ completion: c, task: taskById.get(c.task_id)!, kid, photoUrl: c.photo_path ? photos.get(c.photo_path) : undefined }))} />
       )}
 
-      <Section title="Kvar att göra" aside={`${open.length}`}>
-        {open.length === 0 && <Empty>Inget kvar just nu.</Empty>}
+      <Section title={t("Kvar att göra")} aside={`${open.length}`}>
+        {open.length === 0 && <Empty>{t("Inget kvar just nu.")}</Empty>}
         {open.map((t) => (
           <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={kid} />
         ))}
       </Section>
 
       {doneThisWeek.length > 0 && (
-        <Section title="Klart den här veckan" aside={`${doneThisWeek.length}`}>
+        <Section title={t("Klart den här veckan")} aside={`${doneThisWeek.length}`}>
           {doneThisWeek.map((c) => {
-            const t = taskById.get(c.task_id)!;
+            const task = taskById.get(c.task_id)!;
             return (
               <div key={c.id ?? `${c.task_id}-${c.period}`} className="flex min-h-12 items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{t.title}</p>
-                  <p className="text-[13px] text-muted">{c.reviewed_at ? `Godkänd ${formatDate(today(new Date(c.reviewed_at)))}` : ""}</p>
+                  <p className="font-medium">{task.title}</p>
+                  <p className="text-[13px] text-muted">{c.reviewed_at ? t("Godkänd {date}", { date: date(today(new Date(c.reviewed_at))) }) : ""}</p>
                 </div>
-                <span className="font-semibold tabular-nums text-accent">+{t.points} p</span>
+                <span className="font-semibold tabular-nums text-accent">+{task.points} p</span>
               </div>
             );
           })}
@@ -90,7 +91,7 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
       )}
 
       {extras.length > 0 && (
-        <Section title="Extra poäng">
+        <Section title={t("Extra poäng")}>
           {extras.map((a) => (
             <div key={a.id} className="flex min-h-12 items-center gap-3 py-2.5">
               <p className="min-w-0 flex-1 font-medium">{a.reason}</p>

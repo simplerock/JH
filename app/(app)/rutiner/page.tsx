@@ -7,23 +7,26 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { FreeChores, freeChores } from "@/components/FreeChores";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
-import { isoWeek, recurrenceLabel, today } from "@/lib/dates";
+import { isoWeek, today } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import { currentCompletion, isDone, taskProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
 import type { Recurrence } from "@/lib/types";
 
-const GROUPS: { key: Recurrence; title: string }[] = [
-  { key: "daily", title: "Idag" },
-  { key: "weekly", title: `Vecka ${Number(isoWeek(today()).slice(-2))}` },
-  { key: "monthly", title: "Den här månaden" },
-  { key: "none", title: "En gång" },
-];
+const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "none"];
 
 const AREAS = ["Kök", "Badrum", "Vardagsrum", "Sovrum", "Tvätt", "Ute", "Bil", "Övrigt"];
 
 export default async function RoutinesPage({ searchParams }: { searchParams: Promise<{ vem?: string; ny?: string }> }) {
   const { vem, ny } = await searchParams;
-  const { profile, members, goals, tasks, completions, isParent } = await loadFamilyData();
+  const [{ profile, members, goals, tasks, completions, isParent }, { t, recurrence }] = await Promise.all([loadFamilyData(), getI18n()]);
+  // Veckonumret räknas vid varje visning, inte när servern startar.
+  const GROUPS: { key: Recurrence; title: string }[] = [
+    { key: "daily", title: t("Idag") },
+    { key: "weekly", title: t("Vecka {n}", { n: Number(isoWeek(today()).slice(-2)) }) },
+    { key: "monthly", title: t("Den här månaden") },
+    { key: "none", title: t("En gång") },
+  ];
   const byId = new Map(members.map((m) => [m.id, m]));
   const routines = tasks.filter((t) => !t.project_id);
   const showAll = vem === "alla";
@@ -35,11 +38,11 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Rutiner" />
+      <PageHeader title={t("Rutiner")} />
 
       <div className="inline-flex gap-0.5 self-start rounded-xl bg-track p-[3px]">
-        <Link href="/rutiner" className={tab(!showAll)}>Mina</Link>
-        <Link href="/rutiner?vem=alla" className={tab(showAll)}>Alla</Link>
+        <Link href="/rutiner" className={tab(!showAll)}>{t("Mina")}</Link>
+        <Link href="/rutiner?vem=alla" className={tab(showAll)}>{t("Alla")}</Link>
       </div>
 
       <FreeChores tasks={free} />
@@ -49,7 +52,7 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
         if (list.length === 0) return null;
         const p = taskProgress(list, completions);
         return (
-          <Section key={key} title={title} aside={`${p.done} av ${p.total}`}>
+          <Section key={key} title={title} aside={t("{done} av {total}", { done: p.done, total: p.total })}>
             {list.map((t) => (
               <TaskRow
                 key={t.id}
@@ -67,12 +70,12 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
 
       {visible.length === 0 && free.length === 0 && (
         <Section>
-          <Empty>Inga sysslor här.</Empty>
+          <Empty>{t("Inga sysslor här.")}</Empty>
         </Section>
       )}
 
-      {members.length > 1 && recurring.length > 0 && (
-        <Section title="Hela familjen">
+      {members.some((m) => recurring.some((t) => t.assignee === m.id)) && (
+        <Section title={t("Hela familjen")}>
           {members.map((m) => {
             const theirs = recurring.filter((t) => t.assignee === m.id);
             if (theirs.length === 0) return null;
@@ -81,7 +84,7 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
               <div key={m.id} className="flex items-center gap-3 py-3.5">
                 <Avatar name={m.display_name} color={m.color} size={22} />
                 <div className="flex-1">
-                  <ProgressBar ratio={p.ratio} label={m.display_name} detail={`${p.done} av ${p.total}`} thin />
+                  <ProgressBar ratio={p.ratio} label={m.display_name} detail={t("{done} av {total}", { done: p.done, total: p.total })} thin />
                 </div>
               </div>
             );
@@ -90,39 +93,39 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
       )}
 
       {isParent && (
-        <AddPanel title="Ny syssla" open={ny === "1"}>
+        <AddPanel title={t("Ny syssla")} open={ny === "1"}>
           <StatefulForm action={createTask}>
             <div>
-              <label className="label" htmlFor="title">Vad ska göras?</label>
-              <input className="input" id="title" name="title" placeholder="Dammsuga hallen" required />
+              <label className="label" htmlFor="title">{t("Vad ska göras?")}</label>
+              <input className="input" id="title" name="title" placeholder={t("Dammsuga hallen")} required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label" htmlFor="recurrence">Hur ofta</label>
+                <label className="label" htmlFor="recurrence">{t("Hur ofta")}</label>
                 <select className="input" id="recurrence" name="recurrence" defaultValue="weekly">
-                  {(Object.keys(recurrenceLabel) as Recurrence[]).map((r) => (
-                    <option key={r} value={r}>{recurrenceLabel[r]}</option>
+                  {RECURRENCES.map((r) => (
+                    <option key={r} value={r}>{recurrence(r)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="area">Rum</label>
-                <input className="input" id="area" name="area" list="areas" placeholder="Kök" />
-                <datalist id="areas">{AREAS.map((a) => <option key={a} value={a} />)}</datalist>
+                <label className="label" htmlFor="area">{t("Rum")}</label>
+                <input className="input" id="area" name="area" list="areas" placeholder={t("Kök")} />
+                <datalist id="areas">{AREAS.map((a) => <option key={a} value={t(a)} />)}</datalist>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label" htmlFor="assignee">Vem</label>
+                <label className="label" htmlFor="assignee">{t("Vem")}</label>
                 <select className="input" id="assignee" name="assignee" defaultValue="">
-                  <option value="">Ledig, barnen väljer</option>
+                  <option value="">{t("Ledig syssla")}</option>
                   {members.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="goal_id">Steg i mål</label>
+                <label className="label" htmlFor="goal_id">{t("Steg i mål")}</label>
                 <select className="input" id="goal_id" name="goal_id" defaultValue="">
-                  <option value="">Inget</option>
+                  <option value="">{t("Inget")}</option>
                   {goals.filter((g) => !g.archived && g.kind === "tasks").map((g) => (
                     <option key={g.id} value={g.id}>{g.title}</option>
                   ))}
@@ -131,15 +134,15 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
             </div>
             <div className="grid grid-cols-2 items-end gap-3">
               <div>
-                <label className="label" htmlFor="points">Poäng (barn)</label>
+                <label className="label" htmlFor="points">{t("Poäng (barn)")}</label>
                 <input className="input" id="points" name="points" inputMode="numeric" defaultValue="2" />
               </div>
               <label className="flex items-center gap-2 py-2.5 text-sm">
                 <input type="checkbox" name="requires_photo" className="size-5 accent-[var(--accent)]" />
-                Kräver foto
+                {t("Kräver foto")}
               </label>
             </div>
-            <SubmitButton>Lägg till</SubmitButton>
+            <SubmitButton>{t("Lägg till")}</SubmitButton>
           </StatefulForm>
         </AddPanel>
       )}

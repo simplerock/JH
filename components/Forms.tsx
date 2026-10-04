@@ -3,6 +3,7 @@
 import { createContext, startTransition, useActionState, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/app/actions";
+import { useI18n } from "./I18nProvider";
 
 const PendingContext = createContext(false);
 
@@ -10,9 +11,10 @@ export function SubmitButton({ children, className = "btn w-full" }: { children:
   const inStatefulForm = useContext(PendingContext);
   const { pending: formPending } = useFormStatus();
   const pending = inStatefulForm || formPending;
+  const { t } = useI18n();
   return (
     <button type="submit" className={className} disabled={pending}>
-      {pending ? "Sparar…" : children}
+      {pending ? t("Sparar…") : children}
     </button>
   );
 }
@@ -33,6 +35,7 @@ export function StatefulForm({
   quiet?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const { t } = useI18n();
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state?.ok && resetOnOk) ref.current?.reset();
@@ -53,8 +56,8 @@ export function StatefulForm({
           {children}
         </fieldset>
       </PendingContext.Provider>
-      {state?.error && <p className="w-full rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn" role="alert">{state.error}</p>}
-      {state?.ok && !quiet && <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm text-accent" role="status">{state.ok}</p>}
+      {state?.error && <p className="w-full rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn" role="alert">{t(state.error, state.vars)}</p>}
+      {state?.ok && !quiet && <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm text-accent" role="status">{t(state.ok, state.vars)}</p>}
     </form>
   );
 }

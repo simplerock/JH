@@ -54,7 +54,7 @@ test("Joey lägger upp en ledig syssla och en utdelad", async ({ browser }) => {
     await dad.getByRole("button", { name: "Lägg till" }).click();
     await expect(dad.getByText("Tillagd")).toBeVisible();
   };
-  await add("Tömma diskmaskinen", "Ledig, barnen väljer", "3");
+  await add("Tömma diskmaskinen", "Ledig syssla", "3");
   await add("Bädda sängen", "Haylee", "2");
 });
 

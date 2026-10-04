@@ -3,6 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, Ellipsis, Home, Hammer, Target } from "lucide-react";
+import { useI18n } from "./I18nProvider";
 
 const items = [
   { href: "/", label: "Hem", icon: Home, match: ["/"] },
@@ -14,6 +15,7 @@ const items = [
 
 export function BottomNav({ badge = 0 }: { badge?: number }) {
   const path = usePathname();
+  const { t } = useI18n();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <ul className="mx-auto flex max-w-xl">
@@ -28,9 +30,9 @@ export function BottomNav({ badge = 0 }: { badge?: number }) {
               >
                 <Pending />
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
-                {label}
+                {t(label)}
                 {href === "/" && badge > 0 && (
-                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={`${badge} att godkänna`}>
+                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={t("{n} att godkänna", { n: badge })}>
                     {badge}
                   </span>
                 )}
