@@ -5,7 +5,6 @@ import { FileUp, Plus, Sparkles, X } from "lucide-react";
 import { addEventFiles, readTripDocuments, saveTripDetails, type TripDraft } from "@/app/actions";
 import { StatefulForm, SubmitButton } from "@/components/Forms";
 import { useI18n } from "@/components/I18nProvider";
-import { browserClient } from "@/lib/supabase/client";
 import type { Day, Flight, Hotel } from "@/lib/trip";
 
 type Props = {
@@ -38,6 +37,8 @@ export function TripEditor({ eventId, familyId, ai, current }: Props) {
     start(async () => {
       try {
         setStatus(list.length === 1 ? t("Laddar upp {name}…", { name: list[0].name }) : t("Laddar upp {n} filer…", { n: list.length }));
+        // Supabase-biblioteket laddas först vid uppladdning, inte med sidan.
+        const { browserClient } = await import("@/lib/supabase/client");
         const uploaded = [];
         for (const f of Array.from(list)) {
           const safe = f.name.replace(/[^\w.\-]+/g, "_").slice(-80);

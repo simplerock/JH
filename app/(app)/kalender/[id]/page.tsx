@@ -16,12 +16,15 @@ import { countdown } from "@/lib/format";
 import { getI18n } from "@/lib/i18n/server";
 import { checklistProgress, goalProgress } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
+import { getUser } from "@/lib/session";
 import type { EventFile, FamilyEvent } from "@/lib/types";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [{ supabase, goals, tasks, completions, isParent, profile, members, family }, { t, date, range, time }] = await Promise.all([loadFamilyData(), getI18n()]);
-  const [{ data: e }, { data: fileRows }] = await Promise.all([
+  const { supabase } = await getUser();
+  const [{ goals, tasks, completions, isParent, profile, members, family }, { t, date, range, time }, { data: e }, { data: fileRows }] = await Promise.all([
+    loadFamilyData(),
+    getI18n(),
     supabase.from("events").select("*").eq("id", id).maybeSingle<FamilyEvent>(),
     supabase.from("event_files").select("*").eq("event_id", id).order("created_at").returns<EventFile[]>(),
   ]);

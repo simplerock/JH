@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { RefreshOnFocus } from "@/components/RefreshOnFocus";
 import { getI18n } from "@/lib/i18n/server";
-import { getSession } from "@/lib/session";
+import { getSession, getUser } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [{ supabase, isParent }, { t }] = await Promise.all([getSession(), getI18n()]);
-  const { count } = isParent
-    ? await supabase.from("task_completions").select("id", { count: "exact", head: true }).eq("status", "pending")
-    : { count: 0 };
+  const { supabase } = await getUser();
+  // Antalet att godkänna hämtas samtidigt som profilen. Det visas bara för vuxna.
+  const [{ isParent }, { t }, pending] = await Promise.all([
+    getSession(),
+    getI18n(),
+    supabase.from("task_completions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+  ]);
+  const count = isParent ? (pending.count ?? 0) : 0;
   return (
     <>
       <main className={`mx-auto flex max-w-xl flex-col gap-7 px-4 pt-[max(1.75rem,env(safe-area-inset-top))] ${isParent ? "pb-40" : "pb-28"}`}>{children}</main>
@@ -21,7 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Plus size={26} strokeWidth={2.4} />
         </Link>
       )}
-      <BottomNav badge={count ?? 0} />
+      <BottomNav badge={count} />
+      <RefreshOnFocus />
     </>
   );
 }

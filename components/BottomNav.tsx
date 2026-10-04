@@ -25,6 +25,7 @@ export function BottomNav({ badge = 0 }: { badge?: number }) {
             <li key={href} className="flex-1">
               <Link
                 href={href}
+                prefetch
                 className={`relative flex flex-col items-center gap-0.5 pb-3 pt-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
                 aria-current={active ? "page" : undefined}
               >

@@ -4,12 +4,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import type { Family, Profile } from "./types";
 
-/** Inloggad användare utan krav på familj. */
+/**
+ * Inloggad användare utan krav på familj. Inloggningen kontrolleras lokalt med getClaims
+ * (signaturen verifieras mot projektets publika nyckel), så det kostar ingen rundresa till Supabase.
+ */
 export const getUser = cache(async () => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return { supabase, user };
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims?.sub;
+  if (!id) redirect("/login");
+  return { supabase, user: { id } };
 });
 
 /** Inloggad användare med familj. Skickar till onboarding om familj saknas. */

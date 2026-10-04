@@ -24,7 +24,10 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims kontrollerar inloggningen lokalt mot projektets publika nyckel (cachad i tio minuter)
+  // i stället för att fråga Supabase vid varje sidvisning. Utgångna sessioner förnyas här.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? data.claims : null;
   if (!user && !PUBLIC.includes(path) && !path.startsWith("/api/kalender/")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

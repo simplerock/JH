@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatNumber } from "@/lib/format";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import { kidWeek } from "@/lib/score";
-import { getSession } from "@/lib/session";
+import { getUser } from "@/lib/session";
 
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
   return (
@@ -23,14 +23,15 @@ function Row({ href, title, sub }: { href: string; title: string; sub: string })
 
 export default async function MorePage() {
   const d = today();
-  const [{ supabase, isParent: parent }, { t, range }] = await Promise.all([getSession(), getI18n()]);
+  const { supabase } = await getUser();
   const [from, to] = monthRange(d.slice(0, 7));
-  // Allt hämtas samtidigt. Budgeten bara för vuxna.
-  const [{ members, family, isParent, tasks, completions, weekFrom, adjustments }, events, cats, tx] = await Promise.all([
+  // Allt hämtas samtidigt. Budgeten visas bara för vuxna, och RLS ger barn tomma svar.
+  const [{ members, family, isParent, tasks, completions, weekFrom, adjustments }, events, { t, range }, cats, tx] = await Promise.all([
     loadFamilyData(),
     loadEvents(d),
-    parent ? supabase.from("budget_categories").select("monthly_limit") : Promise.resolve({ data: [] as { monthly_limit: number }[] }),
-    parent ? supabase.from("transactions").select("amount").gte("occurred_on", from).lte("occurred_on", to) : Promise.resolve({ data: [] as { amount: number }[] }),
+    getI18n(),
+    supabase.from("budget_categories").select("monthly_limit"),
+    supabase.from("transactions").select("amount").gte("occurred_on", from).lte("occurred_on", to),
   ]);
   const next = events[0];
 

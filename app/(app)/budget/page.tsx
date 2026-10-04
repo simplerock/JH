@@ -10,24 +10,26 @@ import { monthRange, shiftMonth, today } from "@/lib/dates";
 import { getI18n } from "@/lib/i18n/server";
 import { formatNumber } from "@/lib/format";
 import { budgetSummary } from "@/lib/progress";
-import { getSession } from "@/lib/session";
+import { getSession, getUser } from "@/lib/session";
 import type { BudgetCategory, Transaction } from "@/lib/types";
 
 const kr = (n: number) => `${formatNumber(n)} kr`;
 
 export default async function BudgetPage({ searchParams }: { searchParams: Promise<{ manad?: string; ny?: string }> }) {
-  const [{ supabase, isParent }, { t, date, month: monthName }] = await Promise.all([getSession(), getI18n()]);
-  if (!isParent) redirect("/mer");
-
   const { manad, ny } = await searchParams;
   const current = today().slice(0, 7);
   const month = manad && /^\d{4}-\d{2}$/.test(manad) ? manad : current;
   const [from, to] = monthRange(month);
 
-  const [cats, tx] = await Promise.all([
+  // Budgeten hämtas samtidigt som profilen. RLS ger barn tomma svar, och de skickas vidare nedan.
+  const { supabase } = await getUser();
+  const [{ isParent }, { t, date, month: monthName }, cats, tx] = await Promise.all([
+    getSession(),
+    getI18n(),
     supabase.from("budget_categories").select("*").order("name").returns<BudgetCategory[]>(),
     supabase.from("transactions").select("*").gte("occurred_on", from).lte("occurred_on", to).order("occurred_on", { ascending: false }).returns<Transaction[]>(),
   ]);
+  if (!isParent) redirect("/mer");
   const categories = cats.data ?? [];
   const transactions = tx.data ?? [];
   const sum = budgetSummary(categories, transactions);

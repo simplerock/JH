@@ -3,17 +3,18 @@ import { buildAgenda } from "./agenda";
 import { today, weekStartInstant } from "./dates";
 import { currentPeriods } from "./progress";
 import { getI18n } from "./i18n/server";
-import { getSession } from "./session";
+import { getSession, getUser } from "./session";
 import type { Completion, FamilyEvent, Goal, MaintenanceItem, PointAdjustment, Profile, Project, RewardLevel, Task } from "./types";
 
 export async function loadFamilyData() {
-  const session = await getSession();
-  const { supabase } = session;
+  // Familjens data kräver bara inloggningen (RLS sköter resten), så den hämtas samtidigt som profilen.
+  const { supabase } = await getUser();
   const weekFrom = weekStartInstant();
   const lastWeekFrom = weekStartInstant(new Date(Date.now() - 7 * 86400000));
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
   const periods = currentPeriods().map((p) => `"${p}"`).join(",");
-  const [members, goals, tasks, completions, projects, maintenance, levels, adjustments] = await Promise.all([
+  const [session, members, goals, tasks, completions, projects, maintenance, levels, adjustments] = await Promise.all([
+    getSession(),
     supabase.from("profiles").select("*").order("created_at").returns<Profile[]>(),
     supabase.from("goals").select("*").order("created_at").returns<Goal[]>(),
     supabase.from("tasks").select("*").order("created_at").returns<Task[]>(),
@@ -44,7 +45,7 @@ export async function loadFamilyData() {
 }
 
 export async function loadEvents(fromDate: string) {
-  const { supabase } = await getSession();
+  const { supabase } = await getUser();
   const { data } = await supabase
     .from("events")
     .select("*")
@@ -58,7 +59,7 @@ export async function loadEvents(fromDate: string) {
 export async function signedPhotoUrls(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths.filter(Boolean))];
   if (unique.length === 0) return new Map();
-  const { supabase } = await getSession();
+  const { supabase } = await getUser();
   const { data } = await supabase.storage.from("bevis").createSignedUrls(unique, 3600);
   return new Map((data ?? []).filter((d) => d.signedUrl && d.path).map((d) => [d.path as string, d.signedUrl as string]));
 }

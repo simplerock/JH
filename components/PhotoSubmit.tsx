@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import { submitCompletion } from "@/app/actions";
-import { browserClient } from "@/lib/supabase/client";
 import { useI18n } from "./I18nProvider";
 
 /** Skalar ner bilden i webbläsaren så att uppladdningen går snabbt även på mobilnät. */
@@ -33,6 +32,8 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
       try {
         const blob = await shrink(file);
         const path = `${familyId}/${crypto.randomUUID()}.jpg`;
+        // Supabase-biblioteket laddas först när någon faktiskt skickar ett foto. Sidorna blir lättare.
+        const { browserClient } = await import("@/lib/supabase/client");
         const { error: upErr } = await browserClient().storage.from("bevis").upload(path, blob, { contentType: "image/jpeg" });
         if (upErr) throw upErr;
         const form = new FormData();
