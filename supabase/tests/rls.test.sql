@@ -166,6 +166,28 @@ select tests.expect_count('select * from public.point_adjustments', 0, 'familj B
 select tests.expect_error(format($$insert into public.point_adjustments (kid_id, points, reason) values (%L, 5, 'Intrång')$$, :'cA'), 'familj B ger A:s barn poäng');
 reset role;
 
+-- Barnen väljer lediga sysslor
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+insert into public.tasks (title) values ('Ledig: tömma diskmaskinen') returning id as free_task \gset
+insert into public.tasks (title, assignee) values ('Utdelad: bädda', :'cA') returning id as given_task \gset
+select tests.expect_error(format($$select public.claim_task(%L)$$, :'free_task'), 'förälder väljer syssla som barn');
+reset role;
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select public.claim_task(:'free_task');
+select tests.expect_count(format($$select * from public.tasks where id = %L and assignee = auth.uid() and claimed_at is not null$$, :'free_task'), 1, 'barnet tog den lediga sysslan');
+select tests.expect_error(format($$select public.claim_task(%L)$$, :'free_task'), 'ta samma syssla två gånger');
+select tests.expect_error(format($$select public.release_task(%L)$$, :'given_task'), 'barn släpper utdelad syssla');
+select public.release_task(:'free_task');
+select tests.expect_count(format($$select * from public.tasks where id = %L and assignee is null$$, :'free_task'), 1, 'barnet släppte sysslan');
+select tests.expect_count(format($$update public.tasks set assignee = auth.uid() where id = %L returning 1$$, :'free_task'), 0, 'barn sätter sig som ansvarig direkt');
+reset role;
+select set_config('request.jwt.claim.sub', :'pB', false);
+set role authenticated;
+select tests.expect_error(format($$select public.claim_task(%L)$$, :'free_task'), 'annan familj tar syssla');
+reset role;
+
 -- Familj B ser inget från A
 select set_config('request.jwt.claim.sub', :'pB', false);
 set role authenticated;

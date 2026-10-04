@@ -15,11 +15,11 @@ export const getUser = cache(async () => {
 /** Inloggad användare med familj. Skickar till onboarding om familj saknas. */
 export const getSession = cache(async () => {
   const { supabase, user } = await getUser();
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle<Profile>();
-  if (!profile) redirect("/onboarding");
-  const { data: family } = await supabase.from("families").select("*").eq("id", profile.family_id).single<Family>();
-  if (!family) redirect("/onboarding");
-  return { supabase, user, profile, family, isParent: profile.role === "parent" };
+  // Profil och familj i samma fråga: varje rundresa till databasen märks i laddtiden.
+  const { data } = await supabase.from("profiles").select("*, family:families(*)").eq("id", user.id).maybeSingle<Profile & { family: Family | null }>();
+  if (!data?.family) redirect("/onboarding");
+  const { family, ...profile } = data;
+  return { supabase, user, profile: profile as Profile, family, isParent: profile.role === "parent" };
 });
 
 export async function requireParent() {

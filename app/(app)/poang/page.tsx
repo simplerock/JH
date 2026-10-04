@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, X } from "lucide-react";
 import { deleteExtraPoints, deleteLevel, giveExtraPoints, saveLevel } from "@/app/actions";
 import { Avatar } from "@/components/Avatar";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
@@ -34,12 +35,13 @@ export default async function PointsPage() {
             const pts = kidWeek(k.id, tasks, completions, weekFrom, { adjustments }).points;
             const { level, lowest } = levelFor(pts, levels);
             return (
-              <div key={k.id} className="flex items-center gap-3 py-4">
+              <Link key={k.id} href={`/barn/${k.id}`} className="flex items-center gap-3 py-4">
                 <Avatar name={k.display_name} color={k.color} size={28} />
                 <div className="flex-1">
                   <ProgressBar ratio={pts / top} label={k.display_name} detail={`${pts} p${level ? ` · ${level.name}` : ""}`} over={lowest} />
                 </div>
-              </div>
+                <ChevronRight size={18} className="text-muted" />
+              </Link>
             );
           })}
         </Section>

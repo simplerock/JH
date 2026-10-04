@@ -13,6 +13,7 @@ import { Agenda, RangeChips } from "@/components/Agenda";
 import { byDay, inRange, rangeDates, RANGES, type RangeKey } from "@/lib/agenda";
 import { MaintenanceRow } from "@/components/MaintenanceRow";
 import { Approvals } from "@/components/Approvals";
+import { FreeChores, freeChores } from "@/components/FreeChores";
 import { ScoreCard } from "@/components/ScoreCard";
 import { weekStart, addDays } from "@/lib/dates";
 import { currentCompletion, levelFor } from "@/lib/progress";
@@ -131,6 +132,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
         </Section>
       )}
 
+      {!isParent && <FreeChores tasks={freeChores(tasks)} />}
+
       {waiting.length > 0 && <Section title="Väntar på mamma eller pappa">{waiting.map(row)}</Section>}
 
       {isParent && kids.length > 0 && (
@@ -140,7 +143,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
             const { level, lowest } = levelFor(pts, levels);
             const top = Math.max(...levels.map((l) => l.min_points), 1);
             return (
-              <Link key={k.id} href="/poang" className="flex items-center gap-3 py-3.5">
+              <Link key={k.id} href={`/barn/${k.id}`} className="flex items-center gap-3 py-3.5">
                 <Avatar name={k.display_name} color={k.color} size={22} />
                 <div className="flex-1">
                   <ProgressBar ratio={pts / top} label={k.display_name} detail={`${pts} p${level ? ` · ${level.name}` : ""}`} over={lowest} thin />

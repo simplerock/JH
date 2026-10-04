@@ -283,6 +283,20 @@ export async function deleteExtraPoints(form: FormData) {
   refresh();
 }
 
+export async function claimTask(form: FormData) {
+  const { supabase } = await getSession();
+  const { error } = await supabase.rpc("claim_task", { tid: str(form, "id") });
+  if (error) throw new Error(error.message);
+  refresh();
+}
+
+export async function releaseTask(form: FormData) {
+  const { supabase } = await getSession();
+  const { error } = await supabase.rpc("release_task", { tid: str(form, "id") });
+  if (error) throw new Error(error.message);
+  refresh();
+}
+
 export async function setTheme(form: FormData) {
   const theme = str(form, "theme");
   const jar = await cookies();

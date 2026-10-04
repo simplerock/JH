@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressBar } from "@/components/ProgressBar";
+import { FreeChores, freeChores } from "@/components/FreeChores";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
 import { isoWeek, recurrenceLabel, today } from "@/lib/dates";
@@ -26,7 +27,9 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
   const byId = new Map(members.map((m) => [m.id, m]));
   const routines = tasks.filter((t) => !t.project_id);
   const showAll = vem === "alla";
-  const visible = showAll ? routines : routines.filter((t) => t.assignee === profile.id || !t.assignee);
+  // Barn ser lediga sysslor separat och väljer dem. Vuxna ser dem bland sina egna.
+  const visible = showAll ? routines : routines.filter((t) => t.assignee === profile.id || (!t.assignee && isParent));
+  const free = isParent || showAll ? [] : freeChores(routines);
   const tab = (active: boolean) => `rounded-lg px-3.5 py-1.5 text-sm font-medium ${active ? "bg-card text-ink shadow-sm" : "text-muted"}`;
   const recurring = routines.filter((t) => t.recurrence !== "none");
 
@@ -38,6 +41,8 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
         <Link href="/rutiner" className={tab(!showAll)}>Mina</Link>
         <Link href="/rutiner?vem=alla" className={tab(showAll)}>Alla</Link>
       </div>
+
+      <FreeChores tasks={free} />
 
       {GROUPS.map(({ key, title }) => {
         const list = visible.filter((t) => t.recurrence === key && !(key === "none" && isDone(t, completions) && !showAll));
@@ -60,7 +65,7 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
         );
       })}
 
-      {visible.length === 0 && (
+      {visible.length === 0 && free.length === 0 && (
         <Section>
           <Empty>Inga sysslor här.</Empty>
         </Section>
@@ -110,7 +115,7 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
               <div>
                 <label className="label" htmlFor="assignee">Vem</label>
                 <select className="input" id="assignee" name="assignee" defaultValue="">
-                  <option value="">Vem som helst</option>
+                  <option value="">Ledig, barnen väljer</option>
                   {members.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
                 </select>
               </div>

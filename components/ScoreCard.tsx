@@ -17,7 +17,7 @@ export function ScoreCard({ week, pendingPoints, levels, daysLeft }: { week: Kid
         )}
       </div>
       <p className="mt-1.5 text-[13px] text-muted">
-        poäng den här veckan{bonus > 0 && ` · varav ${bonus} bonus`}{extra > 0 && ` · ${extra} extra`}{extra < 0 && ` · ${-extra} avdrag`}{pendingPoints > 0 && ` · ${pendingPoints} väntar på godkännande`}
+        poäng den här veckan{bonus > 0 && ` · varav ${bonus} bonus`}{extra > 0 && ` · ${extra} extra`}{extra < 0 && ` · ${-extra} avdrag`}{pendingPoints > 0 && ` · ${pendingPoints} p väntar på godkännande`}
       </p>
       {total > 0 && (
         <div className="mt-3.5 grid gap-1" style={{ gridTemplateColumns: `repeat(${total}, 1fr)` }} aria-hidden>

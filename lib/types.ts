@@ -38,6 +38,8 @@ export type Task = {
   points: number;
   requires_photo: boolean;
   event_id: string | null;
+  /** Satt när ett barn själv valde sysslan. */
+  claimed_at?: string | null;
   created_at?: string;
 };
 

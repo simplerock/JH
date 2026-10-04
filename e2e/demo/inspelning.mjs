@@ -241,7 +241,7 @@ await cap("Haydens Hem: veckans poäng, nivå och vad som krävs till nästa fö
 await cap("Bädda sängen kräver foto. Kameran öppnas direkt.", 1800);
 await photo("Ta foto och skicka Bädda sängen", "stokig-sang.png");
 await page.getByRole("button", { name: "Klar med Läsa 20 minuter" }).click();
-await page.getByText("5 väntar på godkännande").waitFor();
+await page.getByText("5 p väntar på godkännande").waitFor();
 await cap("Inget räknas förrän mamma eller pappa har godkänt. 5 poäng väntar.", 2600);
 await logout();
 

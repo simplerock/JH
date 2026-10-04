@@ -6,6 +6,7 @@ import { formatRange, monthRange, today } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
 import { loadEvents, loadFamilyData } from "@/lib/queries";
 import { kidWeek } from "@/lib/score";
+import { getSession } from "@/lib/session";
 
 
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
@@ -22,16 +23,19 @@ function Row({ href, title, sub }: { href: string; title: string; sub: string })
 
 export default async function MorePage() {
   const d = today();
-  const [{ supabase, members, family, isParent, tasks, completions, weekFrom, adjustments }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
+  const { supabase, isParent: parent } = await getSession();
+  const [from, to] = monthRange(d.slice(0, 7));
+  // Allt hämtas samtidigt. Budgeten bara för vuxna.
+  const [{ members, family, isParent, tasks, completions, weekFrom, adjustments }, events, cats, tx] = await Promise.all([
+    loadFamilyData(),
+    loadEvents(d),
+    parent ? supabase.from("budget_categories").select("monthly_limit") : Promise.resolve({ data: [] as { monthly_limit: number }[] }),
+    parent ? supabase.from("transactions").select("amount").gte("occurred_on", from).lte("occurred_on", to) : Promise.resolve({ data: [] as { amount: number }[] }),
+  ]);
   const next = events[0];
 
   let budgetSub = "";
   if (isParent) {
-    const [from, to] = monthRange(d.slice(0, 7));
-    const [cats, tx] = await Promise.all([
-      supabase.from("budget_categories").select("monthly_limit"),
-      supabase.from("transactions").select("amount").gte("occurred_on", from).lte("occurred_on", to),
-    ]);
     const limit = (cats.data ?? []).reduce((a, c) => a + Number(c.monthly_limit), 0);
     const spent = (tx.data ?? []).reduce((a, t) => a + Number(t.amount), 0);
     budgetSub = limit > 0 ? `${formatNumber(limit - spent)} kr kvar den här månaden` : "Ingen budget än";

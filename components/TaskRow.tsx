@@ -1,5 +1,5 @@
 import { Camera, X } from "lucide-react";
-import { deleteTask, submitCompletion, toggleTask } from "@/app/actions";
+import { deleteTask, releaseTask, submitCompletion, toggleTask } from "@/app/actions";
 import { formatDate, recurrenceLabel } from "@/lib/dates";
 import type { Completion, Profile, Task } from "@/lib/types";
 import { Avatar } from "./Avatar";
@@ -91,6 +91,12 @@ export function TaskRow({ task, completion, me, assignee, showAssignee, canDelet
           {task.points} p
         </span>
       ) : null}
+      {!isParent && task.claimed_at && task.assignee === me.id && !status && (
+        <form action={releaseTask}>
+          <input type="hidden" name="id" value={task.id} />
+          <button className="text-[13px] font-medium text-muted underline-offset-2 active:underline" aria-label={`Släpp ${task.title}`}>Släpp</button>
+        </form>
+      )}
       {showAssignee && assignee && <Avatar name={assignee.display_name} color={assignee.color} size={22} />}
       {canDelete && (
         <form action={deleteTask}>

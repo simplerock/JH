@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, Ellipsis, Home, Hammer, Target } from "lucide-react";
 
@@ -9,7 +9,7 @@ const items = [
   { href: "/mal", label: "Mål", icon: Target, match: ["/mal"] },
   { href: "/rutiner", label: "Rutiner", icon: Check, match: ["/rutiner"] },
   { href: "/hemmet", label: "Hemmet", icon: Hammer, match: ["/hemmet"] },
-  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang", "/vecka"] },
+  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang", "/vecka", "/barn"] },
 ];
 
 export function BottomNav({ badge = 0 }: { badge?: number }) {
@@ -26,6 +26,7 @@ export function BottomNav({ badge = 0 }: { badge?: number }) {
                 className={`relative flex flex-col items-center gap-0.5 pb-3 pt-2.5 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}
                 aria-current={active ? "page" : undefined}
               >
+                <Pending />
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
                 {label}
                 {href === "/" && badge > 0 && (
@@ -40,4 +41,10 @@ export function BottomNav({ badge = 0 }: { badge?: number }) {
       </ul>
     </nav>
   );
+}
+
+/** Tunn rad överst på fliken medan sidan laddas, så att trycket syns direkt. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden className={`absolute inset-x-3 top-0 h-0.5 rounded-full bg-accent transition-opacity ${pending ? "animate-pulse opacity-100" : "opacity-0"}`} />;
 }

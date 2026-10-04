@@ -146,3 +146,16 @@ test("extra poäng räknas bara samma vecka och för rätt barn", async () => {
   assert.equal(w.points, 0);
   assert.equal(w.extra, -20);
 });
+
+test("poäng per dag i svensk tid", async () => {
+  const { dailyPoints } = await import("./score.ts");
+  const tasks = [task({ id: "a", points: 3 }), task({ id: "b", points: 2 })];
+  const completions = [
+    // Söndag 23:30 UTC är måndag 01:30 i Sverige.
+    { task_id: "a", period: "x", completed_by: "k", status: "approved" as const, reviewed_at: "2026-10-04T23:30:00Z" },
+    { task_id: "b", period: "y", completed_by: "k", status: "approved" as const, reviewed_at: "2026-10-07T10:00:00Z" },
+    { task_id: "b", period: "z", completed_by: "k", status: "pending" as const, reviewed_at: null },
+  ];
+  const adj = [{ id: "1", kid_id: "k", points: 4, reason: "Bra", created_by: "p", created_at: "2026-10-07T12:00:00Z" }];
+  assert.deepEqual(dailyPoints("k", tasks, completions, adj, "2026-10-05"), [3, 0, 6, 0, 0, 0, 0]);
+});

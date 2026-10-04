@@ -100,11 +100,11 @@ test("Hayden fotar, Joey säger gör om, Jaynie godkänner", async ({ browser })
   await kid.getByRole("button", { name: "Ta foto och skicka Bädda sängen" }).click();
   await (await chooser).setFiles(PHOTO);
   await expect(kid.getByText("Väntar på mamma eller pappa")).toBeVisible();
-  await expect(kid.getByText("2 väntar på godkännande")).toBeVisible();
+  await expect(kid.getByText("2 p väntar på godkännande")).toBeVisible();
 
   // Utan foto
   await kid.getByRole("button", { name: "Klar med Läsa 20 minuter" }).click();
-  await expect(kid.getByText("5 väntar på godkännande")).toBeVisible();
+  await expect(kid.getByText("5 p väntar på godkännande")).toBeVisible();
   await shot(kid, "20-hayden-skickat");
 
   // Joey ser fotot och skickar tillbaka sängen
@@ -125,7 +125,7 @@ test("Hayden fotar, Joey säger gör om, Jaynie godkänner", async ({ browser })
   const again = kid.waitForEvent("filechooser");
   await kid.getByRole("button", { name: "Ta foto och skicka Bädda sängen" }).click();
   await (await again).setFiles(PHOTO);
-  await expect(kid.getByText("5 väntar på godkännande")).toBeVisible();
+  await expect(kid.getByText("5 p väntar på godkännande")).toBeVisible();
 
   // Jaynie godkänner båda
   const mom = await loginParent(browser, jaynie);

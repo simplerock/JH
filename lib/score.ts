@@ -28,3 +28,19 @@ export function kidWeek(
 }
 
 export const lastSunday = (day: string = todayIso()) => addDays(weekStart(day), -1);
+
+/** Poäng per dag måndag till söndag: godkända sysslor (dagen de godkändes) plus extra poäng. */
+export function dailyPoints(kidId: string, tasks: Task[], completions: Completion[], adjustments: PointAdjustment[], monday: string): number[] {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const sums = days.map(() => 0);
+  const points = new Map(tasks.map((t) => [t.id, t.points]));
+  const add = (instant: string, n: number) => {
+    const i = days.indexOf(todayIso(new Date(instant)));
+    if (i >= 0) sums[i] += n;
+  };
+  for (const c of completions) {
+    if (c.completed_by === kidId && c.status === "approved" && c.reviewed_at) add(c.reviewed_at, points.get(c.task_id) ?? 0);
+  }
+  for (const a of adjustments) if (a.kid_id === kidId) add(a.created_at, a.points);
+  return sums;
+}
