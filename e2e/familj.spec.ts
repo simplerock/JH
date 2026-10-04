@@ -161,6 +161,7 @@ test("förälder sätter upp familjen", async ({ page }) => {
   await page.getByLabel(/Info/).fill("Agriturismo Il Poggio\nIncheckning 15:00\nBokningsnr: 88412");
   await page.getByLabel(/Packlista/).fill("Pass\nBoka hundvakt\nLaddare\nSolkräm");
   await page.getByLabel("Kopplat sparmål").selectOption({ label: "Semesterkassa Italien" });
+  await page.getByRole("checkbox", { name: /Lägg till uppgifter inför resan/ }).uncheck();
   await page.getByRole("button", { name: "Spara" }).click();
   await expect(page.getByRole("heading", { name: "Sommar i Toscana" })).toBeVisible();
   await page.getByRole("button", { name: "Bocka av Pass" }).click();

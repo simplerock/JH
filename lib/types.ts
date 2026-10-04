@@ -10,7 +10,7 @@ export type Profile = {
   color: string;
 };
 
-export type Family = { id: string; name: string; invite_code: string };
+export type Family = { id: string; name: string; invite_code: string; calendar_token: string };
 
 export type Goal = {
   id: string;
@@ -38,6 +38,7 @@ export type Task = {
   points: number;
   requires_photo: boolean;
   event_id: string | null;
+  created_at?: string;
 };
 
 export type CompletionStatus = "pending" | "approved" | "redo";

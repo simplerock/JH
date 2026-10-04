@@ -27,8 +27,8 @@ import type { ProjectStatus } from "@/lib/types";
 const STATUS: Record<ProjectStatus, string> = { ongoing: "Pågår", planned: "Planerat", idea: "Idé", done: "Klart" };
 const ORDER: ProjectStatus[] = ["ongoing", "planned", "idea", "done"];
 
-export default async function HousePage({ searchParams }: { searchParams: Promise<{ visa?: string }> }) {
-  const { visa } = await searchParams;
+export default async function HousePage({ searchParams }: { searchParams: Promise<{ visa?: string; ny?: string }> }) {
+  const { visa, ny } = await searchParams;
   const showMaint = visa === "underhall";
   const { profile, members, tasks, completions, projects, maintenance, isParent } = await loadFamilyData();
   const byId = new Map(members.map((m) => [m.id, m]));
@@ -120,7 +120,7 @@ export default async function HousePage({ searchParams }: { searchParams: Promis
           })}
 
           {isParent && (
-            <AddPanel title="Nytt projekt">
+            <AddPanel title="Nytt projekt" open={ny === "1"}>
               <StatefulForm action={createProject}>
                 <div>
                   <label className="label" htmlFor="ptitle">Vad?</label>
@@ -188,7 +188,7 @@ export default async function HousePage({ searchParams }: { searchParams: Promis
           </Section>
 
           {isParent && (
-            <AddPanel title="Nytt underhåll">
+            <AddPanel title="Nytt underhåll" open={ny === "1"}>
               <StatefulForm action={createMaintenance}>
                 <div>
                   <label className="label" htmlFor="mtitle">Vad?</label>

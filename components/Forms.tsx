@@ -60,9 +60,9 @@ export function StatefulForm({
 }
 
 /** Hopfällbar ruta för "lägg till"-formulär så att sidorna inte drunknar i fält. */
-export function AddPanel({ title, children }: { title: string; children: ReactNode }) {
+export function AddPanel({ title, children, open }: { title: string; children: ReactNode; open?: boolean }) {
   return (
-    <details className="card group">
+    <details className="card group" open={open} id={open ? "ny" : undefined}>
       <summary className="flex cursor-pointer list-none items-center justify-between font-semibold">
         {title}
         <span className="text-xl leading-none text-accent transition group-open:rotate-45">+</span>

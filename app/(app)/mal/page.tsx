@@ -12,7 +12,8 @@ import { GoalKindFields } from "./GoalKindFields";
 
 const CATEGORIES = ["Ekonomi", "Hem", "Semester", "Hälsa", "Barnen", "Övrigt"];
 
-export default async function GoalsPage() {
+export default async function GoalsPage({ searchParams }: { searchParams: Promise<{ ny?: string }> }) {
+  const { ny } = await searchParams;
   const { profile, members, goals, tasks, completions, isParent } = await loadFamilyData();
   const byId = new Map(members.map((m) => [m.id, m]));
   const active = goals.filter((g) => !g.archived);
@@ -55,7 +56,7 @@ export default async function GoalsPage() {
       {other.length > 0 && <Section title="Övrigt">{other.map(card)}</Section>}
 
       {isParent && (
-        <AddPanel title="Nytt mål">
+        <AddPanel title="Nytt mål" open={ny === "1"}>
           <StatefulForm action={createGoal}>
             <div>
               <label className="label" htmlFor="title">Vad vill ni uppnå?</label>

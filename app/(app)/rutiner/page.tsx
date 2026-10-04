@@ -20,8 +20,8 @@ const GROUPS: { key: Recurrence; title: string }[] = [
 
 const AREAS = ["Kök", "Badrum", "Vardagsrum", "Sovrum", "Tvätt", "Ute", "Bil", "Övrigt"];
 
-export default async function RoutinesPage({ searchParams }: { searchParams: Promise<{ vem?: string }> }) {
-  const { vem } = await searchParams;
+export default async function RoutinesPage({ searchParams }: { searchParams: Promise<{ vem?: string; ny?: string }> }) {
+  const { vem, ny } = await searchParams;
   const { profile, members, goals, tasks, completions, isParent } = await loadFamilyData();
   const byId = new Map(members.map((m) => [m.id, m]));
   const routines = tasks.filter((t) => !t.project_id);
@@ -85,7 +85,7 @@ export default async function RoutinesPage({ searchParams }: { searchParams: Pro
       )}
 
       {isParent && (
-        <AddPanel title="Ny syssla">
+        <AddPanel title="Ny syssla" open={ny === "1"}>
           <StatefulForm action={createTask}>
             <div>
               <label className="label" htmlFor="title">Vad ska göras?</label>

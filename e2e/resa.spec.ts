@@ -41,6 +41,7 @@ test("resa med dokument, flyg och packuppgift", async ({ page, browser }, info) 
   await page.getByLabel("Namn", { exact: true }).fill("Zhangjiajie");
   await page.getByLabel("Från", { exact: true }).fill(inFuture(34));
   await page.getByLabel("Till", { exact: true }).fill(inFuture(42));
+  await page.getByRole("checkbox", { name: /Lägg till uppgifter inför resan/ }).uncheck();
   await page.getByRole("button", { name: "Spara" }).click();
   await expect(page.getByRole("heading", { name: "Zhangjiajie" })).toBeVisible();
   await expect(page.getByText("Inte bokat")).toBeVisible();

@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { levelFor } from "@/lib/progress";
+import { levelFor, STREAK_BONUS, STREAK_LENGTH } from "@/lib/progress";
+import type { KidWeek } from "@/lib/score";
 import type { RewardLevel } from "@/lib/types";
 
 /** Barnets veckopoäng med nivå, stege och vad som krävs till nästa nivå. */
-export function ScoreCard({ points, pendingPoints, levels, daysLeft }: { points: number; pendingPoints: number; levels: RewardLevel[]; daysLeft: number }) {
+export function ScoreCard({ week, pendingPoints, levels, daysLeft }: { week: KidWeek; pendingPoints: number; levels: RewardLevel[]; daysLeft: number }) {
+  const { points, streak, bonus } = week;
+  const toBonus = STREAK_LENGTH - (streak % STREAK_LENGTH);
   const { level, next, lowest, rank, total } = levelFor(points, levels);
   return (
     <Link href="/poang" className="block rounded-2xl bg-card p-4">
@@ -14,7 +17,7 @@ export function ScoreCard({ points, pendingPoints, levels, daysLeft }: { points:
         )}
       </div>
       <p className="mt-1.5 text-[13px] text-muted">
-        poäng den här veckan{pendingPoints > 0 && ` · ${pendingPoints} väntar på godkännande`}
+        poäng den här veckan{bonus > 0 && ` · varav ${bonus} bonus`}{pendingPoints > 0 && ` · ${pendingPoints} väntar på godkännande`}
       </p>
       {total > 0 && (
         <div className="mt-3.5 grid gap-1" style={{ gridTemplateColumns: `repeat(${total}, 1fr)` }} aria-hidden>
@@ -27,6 +30,14 @@ export function ScoreCard({ points, pendingPoints, levels, daysLeft }: { points:
         {next ? `${next.min_points - points} poäng till ${next.name}: ${next.reward.charAt(0).toLowerCase()}${next.reward.slice(1)}.` : level ? `Högsta nivån! ${level.reward}.` : ""}{" "}
         {daysLeft > 0 ? `${daysLeft} ${daysLeft === 1 ? "dag" : "dagar"} kvar.` : "Sista dagen."}
       </p>
+      {streak > 0 && (
+        <p className="mt-2 flex items-center gap-2 text-sm">
+          <span className="rounded-full bg-wait-soft px-2 py-0.5 text-xs font-semibold text-wait">{streak} {streak === 1 ? "dag" : "dagar"} i rad</span>
+          <span className="text-muted">
+            {streak % STREAK_LENGTH === 0 ? `Bonus +${STREAK_BONUS}!` : `${toBonus} ${toBonus === 1 ? "dag" : "dagar"} till +${STREAK_BONUS} bonus`}
+          </span>
+        </p>
+      )}
     </Link>
   );
 }

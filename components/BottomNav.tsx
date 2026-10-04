@@ -9,7 +9,7 @@ const items = [
   { href: "/mal", label: "Mål", icon: Target, match: ["/mal"] },
   { href: "/rutiner", label: "Rutiner", icon: Check, match: ["/rutiner"] },
   { href: "/hemmet", label: "Hemmet", icon: Hammer, match: ["/hemmet"] },
-  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang"] },
+  { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang", "/vecka"] },
 ];
 
 export function BottomNav({ badge = 0 }: { badge?: number }) {

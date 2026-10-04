@@ -8,7 +8,7 @@ Mobil först. Installeras på hemskärmen (PWA). Vuxna loggar in med e-post, bar
 
 1. **Supabase.** Skapa ett gratis projekt på [supabase.com](https://supabase.com).
 2. **Databasen.** Öppna SQL Editor och kör filerna i `supabase/migrations/` i nummerordning.
-3. **Nycklar.** Kopiera `.env.example` till `.env.local` och fyll i från Project Settings → API.
+3. **Nycklar.** Kopiera `.env.example` till `.env.local` och fyll i från Project Settings → API. `ANTHROPIC_API_KEY` är valfri och slår på AI-inläsning av resedokument och lappar.
    `SUPABASE_SERVICE_ROLE_KEY` är hemlig och används bara på servern för att skapa barnkonton.
 4. **E-postbekräftelse.** Under Authentication → Sign In / Providers kan du stänga av "Confirm email" om du vill slippa bekräftelsemejlet.
 5. Kör lokalt:

@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { FoundEvents, type FoundEvent } from "@/lib/events-import";
 import { TripExtraction } from "@/lib/trip";
 
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
@@ -50,4 +51,32 @@ export async function extractTrip(files: TripFile[]): Promise<TripExtraction> {
   if (response.stop_reason === "refusal") throw new Error("Det gick inte att läsa underlagen. Fyll i för hand.");
   if (!response.parsed_output) throw new Error("Svaret gick inte att tolka. Försök igen eller fyll i för hand.");
   return response.parsed_output;
+}
+
+const EVENTS_INSTRUCTIONS = (today: string) => `Underlaget ovan är en lapp från skolan, ett träningsschema, en inbjudan eller ett mejl till en familj.
+Hitta alla händelser med datum som familjen behöver ha i kalendern. Idag är det ${today}.
+
+Regler:
+- Ta bara med det som står. Gissa inte datum. Saknas året, välj nästa gång datumet infaller från idag.
+- Återkommande tillfällen (t.ex. träning varje tisdag under en termin) blir en händelse per tillfälle, högst 20.
+- Titlar och anteckningar på kort, enkel svenska. Nämn barnets namn om det står.
+- Inga händelser hittade: returnera en tom lista.`;
+
+/** Läser en lapp, ett schema eller ett mejl och returnerar händelser att granska. */
+export async function extractEvents(files: TripFile[], text: string, today: string): Promise<FoundEvent[]> {
+  const client = new Anthropic();
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [...toContentBlocks(files)];
+  if (text.trim()) content.push({ type: "text", text: `Inklistrad text:\n\n${text}` });
+  content.push({ type: "text", text: EVENTS_INSTRUCTIONS(today) });
+  const response = await client.beta.messages.parse({
+    model: "claude-opus-5-5",
+    max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "medium", format: betaZodOutputFormat(FoundEvents) },
+    messages: [{ role: "user", content }],
+  });
+  if (response.stop_reason === "refusal") throw new Error("Det gick inte att läsa underlaget.");
+  if (!response.parsed_output) throw new Error("Svaret gick inte att tolka. Försök igen.");
+  return response.parsed_output.events;
 }

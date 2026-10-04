@@ -1,35 +1,29 @@
-import Link from "next/link";
 import { createEvent } from "@/app/actions";
+import { Agenda, RangeChips } from "@/components/Agenda";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
+import { OwnerSelect } from "@/components/OwnerSelect";
 import { PageHeader } from "@/components/PageHeader";
-import { Empty, Section } from "@/components/Section";
-import { daysBetween, formatRange, today } from "@/lib/dates";
-import { countdown } from "@/lib/format";
-import { loadEvents, loadFamilyData } from "@/lib/queries";
-import type { FamilyEvent } from "@/lib/types";
+import { byDay, inRange, rangeDates, RANGES, type RangeKey } from "@/lib/agenda";
+import { today, weekStart } from "@/lib/dates";
+import { loadAgenda } from "@/lib/queries";
+import { CalendarFeed } from "./CalendarFeed";
 
-const KIND = { vacation: "Semester", event: "Händelse", activity: "Aktivitet" };
-
-function monthLabel(iso: string) {
-  const [y, m] = iso.split("-").map(Number);
-  return new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
-}
-
-export default async function CalendarPage() {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ visa?: string; ny?: string }> }) {
+  const { visa, ny } = await searchParams;
+  const range: RangeKey = visa && visa in RANGES ? (visa as RangeKey) : "30";
   const d = today();
-  const [{ goals, isParent }, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
-  const months = new Map<string, FamilyEvent[]>();
-  for (const e of events) {
-    const key = e.start_date < d ? d.slice(0, 7) : e.start_date.slice(0, 7);
-    months.set(key, [...(months.get(key) ?? []), e]);
-  }
+  const { goals, isParent, members, agenda, family } = await loadAgenda();
+  const [from, to] = rangeDates(range, d, weekStart(d));
+  const days = byDay(inRange(agenda, from, to, d), from);
 
   return (
     <>
       <PageHeader title="Kalender" back={{ href: "/mer", label: "Mer" }} />
+      <RangeChips active={range} base="/kalender" />
+      <Agenda days={days} today={d} members={members} empty="Inget inplanerat under den här perioden." />
 
       {isParent && (
-        <AddPanel title="Lägg till">
+        <AddPanel title="Lägg till" open={ny === "1"}>
           <StatefulForm action={createEvent}>
             <div>
               <label className="label" htmlFor="kind">Typ</label>
@@ -72,30 +66,21 @@ export default async function CalendarPage() {
                 {goals.filter((g) => !g.archived).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
               </select>
             </div>
+            <OwnerSelect members={members.filter((m) => m.role === "parent")} label="Planerar" />
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name="template" defaultChecked className="mt-0.5 size-5 accent-[var(--accent)]" />
+              <span>
+                <span className="font-medium">Lägg till uppgifter inför resan</span>
+                <span className="block text-muted">Boka, pass, försäkring, pengar och packa egen väska för varje barn. Bara för resor.</span>
+              </span>
+            </label>
             <SubmitButton>Spara</SubmitButton>
           </StatefulForm>
         </AddPanel>
       )}
 
-      {events.length === 0 && (
-        <Section>
-          <Empty>Inget inplanerat framåt.</Empty>
-        </Section>
-      )}
+      {isParent && <CalendarFeed token={family.calendar_token} />}
 
-      {[...months.entries()].map(([month, list]) => (
-        <Section key={month} title={monthLabel(month)}>
-          {list.map((e) => (
-            <Link key={e.id} href={`/kalender/${e.id}`} className="flex min-h-14 items-center gap-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{e.title}</p>
-                <p className="text-[13px] text-muted">{KIND[e.kind]} · {formatRange(e.start_date, e.end_date)}{e.location ? ` · ${e.location}` : ""}</p>
-              </div>
-              <span className="shrink-0 text-sm text-muted">{countdown(daysBetween(d, e.start_date))}</span>
-            </Link>
-          ))}
-        </Section>
-      ))}
     </>
   );
 }

@@ -7,12 +7,15 @@ import { TaskRow } from "@/components/TaskRow";
 import { daysBetween, formatRange, today } from "@/lib/dates";
 import { countdown, formatNumber } from "@/lib/format";
 import { goalProgress, isDone, maintenanceDue, taskProgress } from "@/lib/progress";
-import { loadEvents, loadFamilyData } from "@/lib/queries";
+import { loadAgenda } from "@/lib/queries";
+import { kidWeek } from "@/lib/score";
+import { Agenda, RangeChips } from "@/components/Agenda";
+import { byDay, inRange, rangeDates, RANGES, type RangeKey } from "@/lib/agenda";
 import { MaintenanceRow } from "@/components/MaintenanceRow";
 import { Approvals } from "@/components/Approvals";
 import { ScoreCard } from "@/components/ScoreCard";
 import { weekStart, addDays } from "@/lib/dates";
-import { currentCompletion, levelFor, weekPoints } from "@/lib/progress";
+import { currentCompletion, levelFor } from "@/lib/progress";
 import { signedPhotoUrls } from "@/lib/queries";
 
 function greeting() {
@@ -20,9 +23,14 @@ function greeting() {
   return h < 10 ? "God morgon" : h < 18 ? "Hej" : "God kväll";
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ visa?: string }> }) {
+  const { visa } = await searchParams;
+  const range: RangeKey = visa && visa in RANGES ? (visa as RangeKey) : "vecka";
   const d = today();
-  const [data, events] = await Promise.all([loadFamilyData(), loadEvents(d)]);
+  const data = await loadAgenda();
+  const { events, agenda } = data;
+  const [from, to] = rangeDates(range, d, weekStart(d));
+  const upcoming = byDay(inRange(agenda.filter((i) => i.important && i.kind !== "maintenance"), from, to, d), from);
   const { profile, members, goals, tasks, completions, projects, maintenance, isParent, levels, weekFrom } = data;
   const me = profile.id;
   const byId = new Map(members.map((m) => [m.id, m]));
@@ -69,7 +77,7 @@ export default async function Home() {
       </header>
 
       {!isParent && (
-        <ScoreCard points={weekPoints(me, completions, tasks, weekFrom)} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
+        <ScoreCard week={kidWeek(me, tasks, completions, weekFrom)} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
       )}
 
       {vacation && (
@@ -77,6 +85,16 @@ export default async function Home() {
           <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date))}</span>
           <span className="text-xl font-bold">{vacation.title}</span>
           <span className="text-sm text-muted">{formatRange(vacation.start_date, vacation.end_date)}</span>
+        </Link>
+      )}
+
+      {isParent && (addDays(weekStart(d), 6) === d || weekStart(d) === d) && (
+        <Link href="/vecka" className="flex items-center justify-between rounded-2xl bg-card px-4 py-3.5">
+          <span>
+            <span className="block font-semibold">Veckans genomgång</span>
+            <span className="text-[13px] text-muted">Poäng, förmåner och veckan som kommer</span>
+          </span>
+          <span className="text-sm font-medium text-accent">Öppna</span>
         </Link>
       )}
 
@@ -88,6 +106,12 @@ export default async function Home() {
           photoUrl: c.photo_path ? photos.get(c.photo_path) : undefined,
         }))}
       />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="section-title mb-0">Familjens kalender</h2>
+        <RangeChips active={range} base="/" />
+        <Agenda days={upcoming} today={d} members={members} empty={range === "vecka" ? "Inget särskilt resten av veckan." : "Inget inplanerat."} />
+      </section>
 
       {myTasks.length > 0 && (
         <Section title="Att göra" aside={`${taskProgress(myTasks, completions).done} av ${myTasks.length} klara`}>
@@ -112,7 +136,7 @@ export default async function Home() {
       {isParent && kids.length > 0 && (
         <Section title="Barnens vecka">
           {kids.map((k) => {
-            const pts = weekPoints(k.id, completions, tasks, weekFrom);
+            const pts = kidWeek(k.id, tasks, completions, weekFrom).points;
             const { level, lowest } = levelFor(pts, levels);
             const top = Math.max(...levels.map((l) => l.min_points), 1);
             return (

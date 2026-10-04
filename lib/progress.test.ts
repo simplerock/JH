@@ -112,3 +112,21 @@ test("nivåer", () => {
   assert.equal(levelFor(5, levels).lowest, true);
   assert.equal(levelFor(80, levels).next, undefined);
 });
+
+test("streak och bonus", async () => {
+  const { currentStreak, streakBonus } = await import("./progress.ts");
+  const bed = task({ id: "bed", assignee: "kid", recurrence: "daily", created_at: "2026-09-20T08:00:00Z" });
+  const ok = (day: string) => ({ task_id: "bed", period: day, completed_by: "kid", status: "approved" as const });
+  const days = ["2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"];
+  const c = days.map(ok);
+  // Idag (4 okt) inte klar än: streaken räknas från igår
+  assert.equal(currentStreak("kid", "2026-10-04", [bed], c), 7);
+  // 7 dagar i rad nåddes 3 okt, i veckan 28 sep till 4 okt
+  assert.equal(streakBonus("kid", "2026-09-28", "2026-10-04", [bed], c), 5);
+  // En väntande (ej godkänd) dag bryter
+  const broken = c.map((x) => (x.period === "2026-10-01" ? { ...x, status: "pending" as const } : x));
+  assert.equal(currentStreak("kid", "2026-10-04", [bed], broken), 2);
+  assert.equal(streakBonus("kid", "2026-09-28", "2026-10-04", [bed], broken), 0);
+  // Utan dagliga sysslor ingen streak
+  assert.equal(currentStreak("other", "2026-10-04", [bed], c), 0);
+});

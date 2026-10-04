@@ -14,11 +14,11 @@ import type { BudgetCategory, Transaction } from "@/lib/types";
 
 const kr = (n: number) => `${formatNumber(n)} kr`;
 
-export default async function BudgetPage({ searchParams }: { searchParams: Promise<{ manad?: string }> }) {
+export default async function BudgetPage({ searchParams }: { searchParams: Promise<{ manad?: string; ny?: string }> }) {
   const { supabase, isParent } = await getSession();
   if (!isParent) redirect("/mer");
 
-  const { manad } = await searchParams;
+  const { manad, ny } = await searchParams;
   const current = today().slice(0, 7);
   const month = manad && /^\d{4}-\d{2}$/.test(manad) ? manad : current;
   const [from, to] = monthRange(month);
@@ -79,7 +79,7 @@ export default async function BudgetPage({ searchParams }: { searchParams: Promi
       </Section>
 
       {categories.length > 0 && (
-        <AddPanel title="Ny utgift">
+        <AddPanel title="Ny utgift" open={ny === "1"}>
           <StatefulForm action={addTransaction}>
             <div className="grid grid-cols-2 gap-3">
               <div>

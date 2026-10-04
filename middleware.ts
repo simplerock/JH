@@ -6,6 +6,8 @@ const PUBLIC = ["/login", "/setup"];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  // Kalenderprenumerationen skyddas av sin hemliga länk, inte av inloggning.
+  if (path.startsWith("/api/kalender/")) return NextResponse.next();
   if (!isConfigured) {
     return path === "/setup" ? NextResponse.next() : NextResponse.redirect(new URL("/setup", request.url));
   }
@@ -23,7 +25,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user && !PUBLIC.includes(path)) {
+  if (!user && !PUBLIC.includes(path) && !path.startsWith("/api/kalender/")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   if (user && path === "/login") {

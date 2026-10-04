@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { periodKey, today } from "@/lib/dates";
+import { addDays, periodKey, today } from "@/lib/dates";
 import { getSession, getUser, requireParent } from "@/lib/session";
 import { childEmail, childPassword } from "@/lib/supabase/config";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { extractTrip, aiEnabled } from "@/lib/ai/trip";
+import { extractEvents, extractTrip, aiEnabled } from "@/lib/ai/trip";
+import { FoundEvent } from "@/lib/events-import";
 import { mergeDetails, readDetails, SUPPORTED, TripExtraction } from "@/lib/trip";
 import type { ChecklistItem, FamilyEvent, ProjectStatus, Recurrence } from "@/lib/types";
 
@@ -82,6 +83,12 @@ export async function joinFamily(_: FormState, form: FormData): Promise<FormStat
   const { error } = await supabase.rpc("join_family", { code: str(form, "code"), my_name: str(form, "name") });
   if (error) return fail(error);
   redirect("/");
+}
+
+export async function newCalendarToken() {
+  const { supabase } = await requireParent();
+  await supabase.rpc("new_calendar_token");
+  refresh();
 }
 
 export async function newInviteCode() {
@@ -299,9 +306,10 @@ export async function createEvent(_: FormState, form: FormData): Promise<FormSta
       owner: optStr(form, "owner"),
       booked: form.get("booked") === "on",
     })
-    .select("id")
+    .select("id, kind, start_date, owner")
     .single();
   if (error) return fail(error);
+  if (data.kind === "vacation" && form.get("template") === "on") await addTripTemplate(supabase, data);
   refresh();
   redirect(`/kalender/${data.id}`);
 }
@@ -577,4 +585,75 @@ export async function saveTripDetails(_: FormState, form: FormData): Promise<For
   if (error) return fail(error);
   refresh();
   return { ok: "Sparat. Alla i familjen ser nu samma information." };
+}
+
+/** Standarduppgifter inför en resa. Den som planerar får bokningarna, varje barn packar sin väska. */
+async function addTripTemplate(
+  supabase: Awaited<ReturnType<typeof requireParent>>["supabase"],
+  trip: { id: string; start_date: string; owner: string | null },
+) {
+  const d = today();
+  const before = (days: number) => {
+    const due = addDays(trip.start_date, -days);
+    return due < d ? d : due;
+  };
+  const { data: members } = await supabase.from("profiles").select("id, role");
+  const kids = (members ?? []).filter((m) => m.role === "child");
+  // Alla rader måste ha samma fält, annars blir saknade fält null i stället för standardvärdet.
+  const base = { event_id: trip.id, recurrence: "none", area: "Resa", requires_photo: false };
+  const rows = [
+    { ...base, title: "Boka flyg och boende", assignee: trip.owner, due_date: before(30), points: 0 },
+    { ...base, title: "Kolla att alla pass gäller 6 mån efter hemresan", assignee: trip.owner, due_date: before(21), points: 0 },
+    { ...base, title: "Teckna reseförsäkring", assignee: trip.owner, due_date: before(14), points: 0 },
+    { ...base, title: "Fixa pengar och betalkort för resan", assignee: trip.owner, due_date: before(7), points: 0 },
+    ...kids.map((k) => ({ ...base, title: "Packa egen väska", assignee: k.id, due_date: before(1), points: 6, requires_photo: true })),
+  ];
+  const { error } = await supabase.from("tasks").insert(rows);
+  if (error) throw new Error(`Resan sparades men uppgifterna kunde inte skapas: ${error.message}`);
+}
+
+// Fota lapp: händelser från bild, PDF eller mejl ------------------------------------
+
+export type FoundResult = { events?: FoundEvent[]; error?: string };
+
+export async function readEventsFromInput(form: FormData): Promise<FoundResult> {
+  try {
+    await requireParent();
+    if (!aiEnabled()) return { error: "AI-inläsning är inte påslagen." };
+    const files = await Promise.all(
+      form
+        .getAll("file")
+        .filter((f): f is File => f instanceof File && f.size > 0)
+        .map(async (f) => ({ name: f.name, mime: f.type || "text/plain", data: Buffer.from(await f.arrayBuffer()) })),
+    );
+    const usable = files.filter((f) => SUPPORTED.includes(f.mime));
+    const text = str(form, "text");
+    if (usable.length === 0 && !text) return { error: "Välj en bild eller PDF, eller klistra in text." };
+    const events = await extractEvents(usable, text, today());
+    return events.length ? { events } : { error: "Hittade inga datum i underlaget." };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Något gick fel" };
+  }
+}
+
+export async function saveFoundEvents(_: FormState, form: FormData): Promise<FormState> {
+  const { supabase, user } = await requireParent();
+  const parsed = FoundEvent.array().safeParse(JSON.parse(str(form, "payload") || "[]"));
+  if (!parsed.success) return { error: "Något fält är fel ifyllt" };
+  const rows = parsed.data
+    .filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e.date))
+    .map((e) => ({
+      kind: e.kind,
+      title: e.title,
+      start_date: e.date,
+      end_date: e.end_date && e.end_date >= e.date ? e.end_date : null,
+      location: e.location,
+      notes: [e.time, e.notes].filter(Boolean).join("\n") || null,
+      owner: optStr(form, "owner") ?? user.id,
+    }));
+  if (rows.length === 0) return { error: "Välj minst en händelse" };
+  const { error } = await supabase.from("events").insert(rows);
+  if (error) return fail(error);
+  refresh();
+  return { ok: rows.length === 1 ? "1 händelse ligger nu i kalendern." : `${rows.length} händelser ligger nu i kalendern.` };
 }

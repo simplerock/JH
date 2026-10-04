@@ -7,8 +7,9 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { ScoreCard } from "@/components/ScoreCard";
 import { Empty, Section } from "@/components/Section";
 import { addDays, daysBetween, today, weekStart } from "@/lib/dates";
-import { levelFor, weekPoints } from "@/lib/progress";
+import { levelFor } from "@/lib/progress";
 import { loadFamilyData } from "@/lib/queries";
+import { kidWeek } from "@/lib/score";
 
 export default async function PointsPage() {
   const { profile, members, tasks, completions, levels, weekFrom, isParent } = await loadFamilyData();
@@ -28,7 +29,7 @@ export default async function PointsPage() {
         <Section title="Den här veckan">
           {kids.length === 0 && <Empty>Inga barn i familjen än.</Empty>}
           {kids.map((k) => {
-            const pts = weekPoints(k.id, completions, tasks, weekFrom);
+            const pts = kidWeek(k.id, tasks, completions, weekFrom).points;
             const { level, lowest } = levelFor(pts, levels);
             return (
               <div key={k.id} className="flex items-center gap-3 py-4">
@@ -42,7 +43,7 @@ export default async function PointsPage() {
         </Section>
       ) : (
         <ScoreCard
-          points={weekPoints(profile.id, completions, tasks, weekFrom)}
+          week={kidWeek(profile.id, tasks, completions, weekFrom)}
           pendingPoints={pendingFor(profile.id)}
           levels={levels}
           daysLeft={daysBetween(d, addDays(weekStart(d), 6))}

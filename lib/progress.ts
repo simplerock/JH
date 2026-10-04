@@ -57,10 +57,10 @@ export function budgetSummary(categories: BudgetCategory[], transactions: Transa
 }
 
 /** Godkända poäng sedan veckans start. weekFrom är en ISO-tidsstämpel (måndag 00:00 svensk tid). */
-export function weekPoints(kidId: string, completions: Completion[], tasks: Task[], weekFrom: string): number {
+export function weekPoints(kidId: string, completions: Completion[], tasks: Task[], weekFrom: string, weekTo?: string): number {
   const points = new Map(tasks.map((t) => [t.id, t.points]));
   return completions
-    .filter((c) => c.completed_by === kidId && c.status === "approved" && c.reviewed_at && c.reviewed_at >= weekFrom)
+    .filter((c) => c.completed_by === kidId && c.status === "approved" && c.reviewed_at && c.reviewed_at >= weekFrom && (!weekTo || c.reviewed_at < weekTo))
     .reduce((sum, c) => sum + (points.get(c.task_id) ?? 0), 0);
 }
 
@@ -79,4 +79,52 @@ export function levelFor(points: number, levels: RewardLevel[]): LevelInfo {
     rank: idx === -1 ? 0 : sorted.length - idx,
     total: sorted.length,
   };
+}
+
+export const STREAK_BONUS = 5;
+export const STREAK_LENGTH = 7;
+
+/** Var alla barnets dagliga sysslor som fanns den dagen godkända? Dagar utan dagliga sysslor räknas inte. */
+function dayComplete(kidId: string, day: string, tasks: Task[], completions: Completion[]): boolean | null {
+  const daily = tasks.filter((t) => t.assignee === kidId && t.recurrence === "daily" && (!t.created_at || t.created_at.slice(0, 10) <= day));
+  if (daily.length === 0) return null;
+  return daily.every((t) => completions.some((c) => c.task_id === t.id && c.period === day && c.status === "approved"));
+}
+
+/** Antal dagar i rad med alla dagliga sysslor godkända, som slutar på `day`. Dagar utan dagliga sysslor hoppas över. */
+export function streakAt(kidId: string, day: string, tasks: Task[], completions: Completion[]): number {
+  const first = tasks
+    .filter((t) => t.assignee === kidId && t.recurrence === "daily")
+    .map((t) => (t.created_at ?? "0000").slice(0, 10))
+    .sort()[0];
+  if (!first) return 0;
+  let n = 0;
+  for (let d = day; d >= first && n < 366; d = addDaysIso(d, -1)) {
+    const ok = dayComplete(kidId, d, tasks, completions);
+    if (ok === null) continue;
+    if (!ok) break;
+    n++;
+  }
+  return n;
+}
+
+/** Nuvarande streak: räknas från idag om dagen redan är klar, annars från igår. */
+export function currentStreak(kidId: string, today: string, tasks: Task[], completions: Completion[]): number {
+  return dayComplete(kidId, today, tasks, completions) ? streakAt(kidId, today, tasks, completions) : streakAt(kidId, addDaysIso(today, -1), tasks, completions);
+}
+
+/** Bonuspoäng för varje gång streaken nådde en hel vecka under perioden [from, to]. */
+export function streakBonus(kidId: string, from: string, to: string, tasks: Task[], completions: Completion[]): number {
+  let bonus = 0;
+  for (let d = from; d <= to; d = addDaysIso(d, 1)) {
+    const s = dayComplete(kidId, d, tasks, completions) ? streakAt(kidId, d, tasks, completions) : 0;
+    if (s > 0 && s % STREAK_LENGTH === 0) bonus += STREAK_BONUS;
+  }
+  return bonus;
+}
+
+function addDaysIso(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return t.toISOString().slice(0, 10);
 }

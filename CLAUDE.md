@@ -22,6 +22,10 @@ Minimalistiskt. Allt som inte hjälper någon att göra något tas bort.
 - Formulär för att skapa saker ligger i en hopfälld `AddPanel` längst ner. Sällan använda knappar göms under "Hantera".
 - Hem visar bara det personen ansvarar för (`assignee` på sysslor, `owner` på mål, projekt och underhåll).
 - Testa nya idéer i `prototyp/familjen.html` först.
+- Allt med datum går in i agendan (`lib/agenda.ts`). Hem visar viktiga saker veckovis, kalendern allt, och samma data går ut som prenumeration (`app/api/kalender/[token]`).
+- Föräldrar lägger till nytt via plusknappen (`/ny`), som öppnar rätt formulär med `?ny=1`.
+- AI (Claude) används bara för att läsa dokument och lappar. Allt som AI föreslår granskas av en förälder innan det sparas. Utan `ANTHROPIC_API_KEY` göms AI-funktionerna.
+- Barnens poäng: godkänt av förälder, foto när sysslan kräver det, streakbonus vid 7 dagar i rad (`lib/progress.ts`, `lib/score.ts`).
 
 ## Regler
 - **UI-text på svenska.** Kort, vardagligt, inga tankstreck i löptext.
