@@ -59,6 +59,11 @@ test("Joey lägger upp en ledig syssla och en utdelad", async ({ browser }) => {
   await add("Tömma diskmaskinen", "Ledig syssla", "3");
   await add("Bädda sängen", "Haylee", "2");
   await add("Kasta skräpet", "Hayden", "3", true);
+
+  // Lediga sysslor visar också sina poäng, inte bara de som har ett barn som ansvarig.
+  await dad.reload();
+  const free = dad.locator("div.min-h-14", { hasText: "Tömma diskmaskinen" });
+  await expect(free.getByText("3 p")).toBeVisible();
 });
 
 test("Hayden får veta om fotot inte kommer fram, och kan försöka igen", async ({ browser }) => {

@@ -87,7 +87,7 @@ export async function TaskRow({ task, completion, me, assignee, showAssignee, ca
         <span className="rounded-full bg-wait-soft px-2 py-0.5 text-xs font-semibold text-wait">{t("Väntar")}</span>
       ) : status === "redo" ? (
         <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">{t("Gör om")}</span>
-      ) : kidTask && task.points > 0 ? (
+      ) : (kidTask || !task.assignee) && task.points > 0 ? (
         <span className="flex items-center gap-1 text-[13px] font-semibold tabular-nums text-muted">
           {task.requires_photo && <Camera size={14} aria-label={t("Kräver foto")} />}
           {task.points} p
