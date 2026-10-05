@@ -460,4 +460,6 @@ export const en: Record<string, string> = {
   "Kunde inte läsa bilden": "Couldn't read the image",
   "Fotot kom inte fram. Försök igen, och säg till mamma eller pappa om det inte går.": "The photo didn't get through. Try again, and tell mum or dad if it still doesn't work.",
   "Försök igen": "Try again",
+  "Bekräfta: {label}": "Confirm: {label}",
+  "Ta bort?": "Delete?",
 };

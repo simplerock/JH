@@ -1,8 +1,9 @@
-import { Camera, X } from "lucide-react";
+import { Camera } from "lucide-react";
 import { deleteTask, releaseTask, submitCompletion, toggleTask } from "@/app/actions";
 import { getI18n } from "@/lib/i18n/server";
 import type { Completion, Profile, Task } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import { ConfirmDelete } from "./ConfirmDelete";
 import { PhotoSubmit } from "./PhotoSubmit";
 
 type Props = {
@@ -100,12 +101,7 @@ export async function TaskRow({ task, completion, me, assignee, showAssignee, ca
       )}
       {showAssignee && assignee && <Avatar name={assignee.display_name} color={assignee.color} size={22} />}
       {canDelete && (
-        <form action={deleteTask}>
-          <input type="hidden" name="id" value={task.id} />
-          <button aria-label={t("Ta bort {title}", { title: task.title })} className="p-1 text-muted">
-            <X size={15} />
-          </button>
-        </form>
+        <ConfirmDelete action={deleteTask} id={task.id} label={t("Ta bort {title}", { title: task.title })} />
       )}
     </div>
   );

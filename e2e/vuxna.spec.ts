@@ -121,7 +121,10 @@ test("Joey ger extra poäng och Haylee ser dem", async ({ browser }) => {
 
   // Joey ångrar, då försvinner poängen
   await dad.goto("/poang");
+  // Två steg: första trycket frågar, andra tar bort. Ett dubbeltryck ska inte ta bort fel rad.
   await dad.getByRole("button", { name: "Ta bort extra poäng" }).click();
+  await expect(dad.getByText("Dukade utan att bli tillfrågad")).toBeVisible();
+  await dad.getByRole("button", { name: "Bekräfta: Ta bort extra poäng" }).click();
   await expect(dad.getByText("Inga extra poäng den här veckan.")).toBeVisible();
 });
 

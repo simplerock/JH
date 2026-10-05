@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, X } from "lucide-react";
 import { deleteExtraPoints, deleteLevel, giveExtraPoints, saveLevel } from "@/app/actions";
 import { Avatar } from "@/components/Avatar";
+import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { AddPanel, StatefulForm, SubmitButton } from "@/components/Forms";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -69,10 +70,7 @@ export default async function PointsPage() {
               </div>
               <span className={`font-semibold tabular-nums ${a.points < 0 ? "text-warn" : "text-accent"}`}>{a.points > 0 ? `+${a.points}` : a.points} p</span>
               {isParent && (
-                <form action={deleteExtraPoints}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <button aria-label={t("Ta bort extra poäng")} className="p-1 text-muted"><X size={15} /></button>
-                </form>
+                <ConfirmDelete action={deleteExtraPoints} id={a.id} label={t("Ta bort extra poäng")} />
               )}
             </div>
           ))}

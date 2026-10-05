@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, MapPin, Trash2, X } from "lucide-react";
 import { addChecklistItems, createTask, deleteEvent, deleteEventFile, removeChecklistItem, toggleChecklistItem, updateEvent } from "@/app/actions";
+import { ConfirmDelete } from "@/components/ConfirmDelete";
 import { OwnerSelect } from "@/components/OwnerSelect";
 import { Empty, Section } from "@/components/Section";
 import { TaskRow } from "@/components/TaskRow";
@@ -122,10 +123,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               <FileText size={18} className="shrink-0 text-muted" />
               <a href={urls.get(f.path) ?? "#"} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-medium">{f.name}</a>
               {isParent && (
-                <form action={deleteEventFile}>
-                  <input type="hidden" name="id" value={f.id} />
-                  <button aria-label={t("Ta bort {title}", { title: f.name })} className="p-1 text-muted"><X size={14} /></button>
-                </form>
+                <ConfirmDelete action={deleteEventFile} id={f.id} label={t("Ta bort {title}", { title: f.name })} />
               )}
             </div>
           ))}
