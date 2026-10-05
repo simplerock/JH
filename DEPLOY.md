@@ -46,4 +46,5 @@ Projektet heter **Home Hub** i organisationen **Simplerock**.
 
 - **Run i SQL Editor ger fel om något som redan finns**: setup.sql har redan körts. Kör den inte igen.
 - **Inloggning fungerar men barnkonto ger fel**: `SUPABASE_SERVICE_ROLE_KEY` saknas eller är fel i Vercel.
-- **Foton laddas inte upp**: kontrollera att bucketen `bevis` finns under Storage.
+- **Foton laddas inte upp**: kontrollera att bucketarna `bevis` och `resor` finns under Storage. Saknas de, kör `supabase/migrations/0009_lagring_igen.sql` i SQL Editor.
+- **Ta aldrig bort bucketarna `bevis` och `resor`.** Då försvinner också reglerna för vem som får se filerna. Ska testfiler bort, öppna bucketen och ta bort mapparna inuti.

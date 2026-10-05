@@ -42,7 +42,11 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
         form.set("photo_path", path);
         await submitCompletion(form);
       } catch (e) {
-        setError(e instanceof Error ? t(e.message) : t("Det gick inte att skicka fotot"));
+        // Barnet ska alltid få veta att det inte gick, annars tror det att sysslan är inskickad.
+        console.error("Fotot kunde inte skickas", e);
+        setError(t("Fotot kom inte fram. Försök igen, och säg till mamma eller pappa om det inte går."));
+      } finally {
+        if (input.current) input.current.value = "";
       }
     });
   }
@@ -72,7 +76,17 @@ export function PhotoSubmit({ taskId, recurrence, familyId, title, redo }: Props
         data-photo-for={taskId}
         onChange={(e) => onFile(e.target.files?.[0])}
       />
-      {error && <span className="sr-only" role="alert">{error}</span>}
+      {error && (
+        <div role="alert" className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-start gap-3 rounded-2xl bg-warn-soft p-4 text-sm text-warn shadow-lg">
+          <p className="flex-1">{error}</p>
+          <button type="button" className="font-semibold" onClick={() => { setError(null); input.current?.click(); }}>
+            {t("Försök igen")}
+          </button>
+          <button type="button" aria-label={t("Stäng")} className="font-semibold" onClick={() => setError(null)}>
+            ×
+          </button>
+        </div>
+      )}
       {pending && <span className="sr-only" role="status">{redo ? t("Skickar igen") : t("Skickar")}</span>}
     </>
   );

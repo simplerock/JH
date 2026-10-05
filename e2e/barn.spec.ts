@@ -6,6 +6,7 @@ const stamp = Date.now().toString(36);
 const joey = { email: `joey.b.${stamp}@example.com`, password: "hemligt123" };
 const haylee = { username: `hb${stamp}`.slice(0, 20), pin: "4444" };
 const hayden = { username: `db${stamp}`.slice(0, 20), pin: "5555" };
+const PHOTO = "e2e/test-foto.png";
 
 test.describe.configure({ mode: "serial" });
 
@@ -46,16 +47,38 @@ test("Joey lägger upp en ledig syssla och en utdelad", async ({ browser }) => {
 
   await dad.goto("/rutiner?vem=alla");
   await dad.getByText("Ny syssla").click();
-  const add = async (title: string, who: string, points: string) => {
+  const add = async (title: string, who: string, points: string, photo = false) => {
     await dad.getByLabel("Vad ska göras?").fill(title);
     await dad.getByLabel("Hur ofta").selectOption({ label: "Varje dag" });
     await dad.getByLabel("Vem", { exact: true }).selectOption({ label: who });
     await dad.getByLabel("Poäng (barn)").fill(points);
+    await dad.getByRole("checkbox", { name: "Kräver foto" }).setChecked(photo);
     await dad.getByRole("button", { name: "Lägg till" }).click();
     await expect(dad.getByText("Tillagd")).toBeVisible();
   };
   await add("Tömma diskmaskinen", "Ledig syssla", "3");
   await add("Bädda sängen", "Haylee", "2");
+  await add("Kasta skräpet", "Hayden", "3", true);
+});
+
+test("Hayden får veta om fotot inte kommer fram, och kan försöka igen", async ({ browser }) => {
+  const kid = await loginChild(browser, hayden);
+  // Som när lagringen saknades i Supabase: uppladdningen nekas.
+  await kid.route("**/storage/v1/object/bevis/**", (route) => route.fulfill({ status: 400, body: JSON.stringify({ error: "Bucket not found" }) }));
+  let chooser = kid.waitForEvent("filechooser");
+  await kid.getByRole("button", { name: "Ta foto och skicka Kasta skräpet" }).click();
+  await (await chooser).setFiles(PHOTO);
+  // Next.js har en egen osynlig role=alert för sidbyten, så rutan letas upp på texten.
+  const failed = kid.getByRole("alert").filter({ hasText: "Fotot kom inte fram" });
+  await expect(failed).toBeVisible();
+  await expect(kid.getByText("Väntar på mamma eller pappa")).toHaveCount(0);
+
+  await kid.unroute("**/storage/v1/object/bevis/**");
+  chooser = kid.waitForEvent("filechooser");
+  await failed.getByRole("button", { name: "Försök igen" }).click();
+  await (await chooser).setFiles(PHOTO);
+  await expect(kid.getByText("Väntar på mamma eller pappa")).toBeVisible();
+  await expect(failed).toHaveCount(0);
 });
 
 test("Haylee väljer den lediga sysslan, Hayden ser att den är tagen", async ({ browser }) => {
