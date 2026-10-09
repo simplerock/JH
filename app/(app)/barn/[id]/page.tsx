@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import { undoCompletion } from "@/app/actions";
 import { Approvals } from "@/components/Approvals";
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { PageHeader } from "@/components/PageHeader";
 import { ScoreCard } from "@/components/ScoreCard";
 import { Empty, Section } from "@/components/Section";
@@ -9,7 +11,6 @@ import { getI18n } from "@/lib/i18n/server";
 import { currentCompletion, isDone } from "@/lib/progress";
 import { loadFamilyData, signedPhotoUrls } from "@/lib/queries";
 import { dailyPoints, kidWeek } from "@/lib/score";
-
 
 /** Ett barns vecka för föräldrarna: poäng dag för dag, vad som är kvar, väntar och klart. */
 export default async function KidPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +30,10 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
 
   const theirs = tasks.filter((t) => t.assignee === kid.id && !t.project_id);
   const statusOf = (t: (typeof tasks)[number]) => currentCompletion(t, completions)?.status;
-  const open = theirs.filter((t) => !isDone(t, completions) && statusOf(t) !== "pending" && (t.recurrence !== "none" || !t.due_date || daysBetween(d, t.due_date) <= 14));
+  const redo = theirs.filter((t) => statusOf(t) === "redo");
+  const open = theirs.filter(
+    (t) => !isDone(t, completions) && statusOf(t) !== "pending" && statusOf(t) !== "redo" && (t.recurrence !== "none" || !t.due_date || daysBetween(d, t.due_date) <= 14),
+  );
   const pending = completions.filter((c) => c.completed_by === kid.id && c.status === "pending" && taskById.has(c.task_id));
   const doneThisWeek = completions
     .filter((c) => c.completed_by === kid.id && c.status === "approved" && c.reviewed_at && c.reviewed_at >= weekFrom && taskById.has(c.task_id))
@@ -66,10 +70,18 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
         <Approvals items={pending.map((c) => ({ completion: c, task: taskById.get(c.task_id)!, kid, photoUrl: c.photo_path ? photos.get(c.photo_path) : undefined }))} />
       )}
 
+      {redo.length > 0 && (
+        <Section title={t("Ska göras om")} aside={`${redo.length}`}>
+          {redo.map((task) => (
+            <TaskRow key={task.id} task={task} completion={currentCompletion(task, completions)} me={profile} assignee={kid} />
+          ))}
+        </Section>
+      )}
+
       <Section title={t("Kvar att göra")} aside={`${open.length}`}>
         {open.length === 0 && <Empty>{t("Inget kvar just nu.")}</Empty>}
-        {open.map((t) => (
-          <TaskRow key={t.id} task={t} completion={currentCompletion(t, completions)} me={profile} assignee={kid} />
+        {open.map((task) => (
+          <TaskRow key={task.id} task={task} completion={currentCompletion(task, completions)} me={profile} assignee={kid} />
         ))}
       </Section>
 
@@ -82,6 +94,19 @@ export default async function KidPage({ params }: { params: Promise<{ id: string
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{task.title}</p>
                   <p className="text-[13px] text-muted">{c.reviewed_at ? t("Godkänd {date}", { date: date(today(new Date(c.reviewed_at))) }) : ""}</p>
+                  {isParent && c.id && (
+                    <div className="mt-1">
+                      <ConfirmAction
+                        action={undoCompletion}
+                        id={c.id}
+                        label={t("Återställ {title}", { title: task.title })}
+                        confirm={t("Återställ?")}
+                        className="text-[13px] font-semibold text-muted"
+                      >
+                        {t("Återställ")}
+                      </ConfirmAction>
+                    </div>
+                  )}
                 </div>
                 <span className="font-semibold tabular-nums text-accent">+{task.points} p</span>
               </div>

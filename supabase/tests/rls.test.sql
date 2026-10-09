@@ -188,6 +188,33 @@ set role authenticated;
 select tests.expect_error(format($$select public.claim_task(%L)$$, :'free_task'), 'annan familj tar syssla');
 reset role;
 
+-- Ångra och återställa avbockningar
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+insert into public.task_completions (task_id, period) values (:'task_child', '2026-W50') returning id as undo_approved \gset
+insert into public.task_completions (task_id, period) values (:'task_child', '2026-W51') returning id as undo_pending \gset
+select tests.expect_count(format($$delete from public.task_completions where id = %L returning 1$$, :'undo_pending'), 1, 'barn ångrar eget inskick som väntar');
+insert into public.task_completions (task_id, period) values (:'task_child', '2026-W52') returning id as reset_pending \gset
+reset role;
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+update public.task_completions set status = 'approved' where id = :'undo_approved';
+reset role;
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count(format($$delete from public.task_completions where id = %L returning 1$$, :'undo_approved'), 0, 'barn tar bort godkänd avbockning');
+select tests.expect_count(format($$delete from public.task_completions where task_id = %L and completed_by <> auth.uid() returning 1$$, :'task_parent'), 0, 'barn tar bort förälders avbockning');
+reset role;
+select set_config('request.jwt.claim.sub', :'pA', false);
+set role authenticated;
+select tests.expect_count(format($$delete from public.task_completions where id = %L returning 1$$, :'undo_approved'), 1, 'förälder återställer godkänd avbockning');
+select tests.expect_count(format($$delete from public.task_completions where id = %L returning 1$$, :'reset_pending'), 1, 'förälder återställer inskick som väntar');
+reset role;
+select set_config('request.jwt.claim.sub', :'pB', false);
+set role authenticated;
+select tests.expect_count('delete from public.task_completions returning 1', 0, 'familj B återställer A:s avbockningar');
+reset role;
+
 -- Familj B ser inget från A
 select set_config('request.jwt.claim.sub', :'pB', false);
 set role authenticated;

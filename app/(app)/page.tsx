@@ -44,7 +44,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
 
   const myTasks = tasks.filter((t) => t.assignee === me && !t.project_id);
   const statusOf = (t: (typeof tasks)[number]) => currentCompletion(t, completions)?.status;
-  const open = myTasks.filter((t) => !isDone(t, completions) && statusOf(t) !== "pending");
+  // Det en förälder skickat tillbaka visas för sig, högst upp, så att barnet ser det direkt.
+  const redo = myTasks.filter((t) => statusOf(t) === "redo");
+  const open = myTasks.filter((t) => !isDone(t, completions) && statusOf(t) !== "pending" && statusOf(t) !== "redo");
   const waiting = myTasks.filter((t) => statusOf(t) === "pending");
   const closed = myTasks.filter((t) => isDone(t, completions) && t.recurrence !== "none");
   const myMaint = maintenance
@@ -84,6 +86,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
         <ScoreCard week={kidWeek(me, tasks, completions, weekFrom, { adjustments })} pendingPoints={myPending} levels={levels} daysLeft={daysLeft} />
       )}
 
+      {redo.length > 0 && (
+        <Section title={t("Ska göras om")} aside={String(redo.length)}>
+          {redo.map(row)}
+        </Section>
+      )}
+
       {vacation && (
         <Link href={`/kalender/${vacation.id}`} className="flex flex-col rounded-2xl bg-accent-soft p-4">
           <span className="text-sm font-semibold text-accent">{countdown(daysBetween(d, vacation.start_date), t)}</span>
@@ -119,7 +127,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
 
       {myTasks.length > 0 && (
         <Section title={t("Att göra")} aside={t("{done} av {total} klara", { done: taskProgress(myTasks, completions).done, total: myTasks.length })}>
-          {open.length === 0 && <Empty>{waiting.length ? t("Allt inskickat. Snyggt.") : t("Allt klart. Snyggt.")}</Empty>}
+          {open.length === 0 && (
+            <Empty>
+              {redo.length ? t("Resten är klart. Börja med det som ska göras om.") : waiting.length ? t("Allt inskickat. Snyggt.") : t("Allt klart. Snyggt.")}
+            </Empty>
+          )}
           {open.map(row)}
           {closed.length > 0 && (
             <details className="group/done">

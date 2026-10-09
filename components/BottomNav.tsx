@@ -13,7 +13,7 @@ const items = [
   { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang", "/vecka", "/barn"] },
 ];
 
-export function BottomNav({ badge = 0 }: { badge?: number }) {
+export function BottomNav({ badge }: { badge?: { count: number; label: string } }) {
   const path = usePathname();
   const { t } = useI18n();
   return (
@@ -32,9 +32,9 @@ export function BottomNav({ badge = 0 }: { badge?: number }) {
                 <Pending />
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
                 {t(label)}
-                {href === "/" && badge > 0 && (
-                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={t("{n} att godkänna", { n: badge })}>
-                    {badge}
+                {href === "/" && badge && badge.count > 0 && (
+                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={badge.label}>
+                    {badge.count}
                   </span>
                 )}
               </Link>

@@ -1,8 +1,9 @@
 import { Camera } from "lucide-react";
-import { deleteTask, releaseTask, submitCompletion, toggleTask } from "@/app/actions";
+import { approveCompletion, deleteTask, releaseTask, submitCompletion, toggleTask, undoCompletion } from "@/app/actions";
 import { getI18n } from "@/lib/i18n/server";
 import type { Completion, Profile, Task } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import { ConfirmAction } from "./ConfirmAction";
 import { ConfirmDelete } from "./ConfirmDelete";
 import { PhotoSubmit } from "./PhotoSubmit";
 
@@ -33,6 +34,11 @@ export async function TaskRow({ task, completion, me, assignee, showAssignee, ca
   const kidTask = assignee?.role === "child";
   const isParent = me.role === "parent";
   const mine = task.assignee === me.id || (!task.assignee && !isParent);
+  const completionId = completion?.id;
+  // Barnet kan ångra sitt eget inskick så länge det väntar. Föräldrar kan återställa ett barns syssla
+  // i alla lägen (inskickad, gör om, godkänd), så att den blir ogjord igen utan poäng.
+  const kidUndo = !isParent && status === "pending" && completion?.completed_by === me.id && !!completionId;
+  const parentReset = isParent && kidTask && !!completionId;
   const sub = plain
     ? null
     : [task.area, task.due_date ? t("senast {date}", { date: date(task.due_date) }) : recurrence(task.recurrence)].filter(Boolean).join(" · ");
@@ -51,6 +57,21 @@ export async function TaskRow({ task, completion, me, assignee, showAssignee, ca
         <input type="hidden" name="recurrence" value={task.recurrence} />
         <button aria-label={t("Klar med {title}", { title: task.title })} className={`${circle} border-line active:scale-90`} />
       </form>
+    );
+  } else if (parentReset && status === "redo") {
+    // Föräldern godkänner ändå, till exempel om "Gör om" blev fel.
+    mark = (
+      <form action={approveCompletion}>
+        <input type="hidden" name="id" value={completionId} />
+        <button aria-label={t("Godkänn {title}", { title: task.title })} className={`${circle} border-line active:scale-90`} />
+      </form>
+    );
+  } else if (parentReset && done) {
+    // Ett barns godkända syssla tas inte bort med ett tryck på cirkeln. Det görs med Återställ, i två steg.
+    mark = (
+      <span role="img" aria-label={t("{title} är godkänd", { title: task.title })} className={`${circle} border-accent bg-accent text-accent-ink`}>
+        <Tick />
+      </span>
     );
   } else {
     // Vuxna bockar av direkt. Barn kan inte ångra något som redan är godkänt.
@@ -81,6 +102,27 @@ export async function TaskRow({ task, completion, me, assignee, showAssignee, ca
             {sub}
             {status === "redo" && completion?.note && <span className="text-warn">{sub ? " · " : ""}{completion.note}</span>}
           </p>
+        )}
+        {kidUndo && (
+          <form action={undoCompletion} className="mt-1">
+            <input type="hidden" name="id" value={completionId} />
+            <button className="text-[13px] font-semibold text-accent" aria-label={t("Ångra {title}", { title: task.title })}>
+              {t("Ångra")}
+            </button>
+          </form>
+        )}
+        {parentReset && completionId && (
+          <div className="mt-1">
+            <ConfirmAction
+              action={undoCompletion}
+              id={completionId}
+              label={t("Återställ {title}", { title: task.title })}
+              confirm={t("Återställ?")}
+              className="text-[13px] font-semibold text-muted"
+            >
+              {t("Återställ")}
+            </ConfirmAction>
+          </div>
         )}
       </div>
       {status === "pending" ? (

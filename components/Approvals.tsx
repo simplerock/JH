@@ -1,11 +1,15 @@
-import { approveCompletion, redoCompletion } from "@/app/actions";
+import { approveCompletion, redoCompletion, undoCompletion } from "@/app/actions";
 import type { Completion, Profile, Task } from "@/lib/types";
 import { getI18n } from "@/lib/i18n/server";
+import { ConfirmAction } from "./ConfirmAction";
 import { Section } from "./Section";
 
 type Item = { completion: Completion; task: Task; kid?: Profile; photoUrl?: string };
 
-/** Det barnen skickat in. Godkänn ger poäng, Gör om skickar tillbaka med en kommentar. */
+/**
+ * Det barnen skickat in. Godkänn ger poäng, Gör om skickar tillbaka med en kommentar,
+ * Återställ tar bort inskicket helt (om barnet tryckt på fel syssla).
+ */
 export async function Approvals({ items }: { items: Item[] }) {
   if (items.length === 0) return null;
   const { t, time: at } = await getI18n();
@@ -27,6 +31,17 @@ export async function Approvals({ items }: { items: Item[] }) {
               <p className="font-medium">{task.title}</p>
               <p className="text-[13px] text-muted">{[kid?.display_name, time(c.completed_at), `${task.points} p`].filter(Boolean).join(" · ")}</p>
             </div>
+            {c.id && (
+              <ConfirmAction
+                action={undoCompletion}
+                id={c.id}
+                label={t("Återställ {title}", { title: task.title })}
+                confirm={t("Återställ?")}
+                className="shrink-0 self-start text-[13px] font-semibold text-muted"
+              >
+                {t("Återställ")}
+              </ConfirmAction>
+            )}
           </div>
           <div className="mt-2.5 flex gap-2 pl-[68px]">
             <form action={approveCompletion}>

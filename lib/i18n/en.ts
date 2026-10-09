@@ -462,4 +462,12 @@ export const en: Record<string, string> = {
   "Försök igen": "Try again",
   "Bekräfta: {label}": "Confirm: {label}",
   "Ta bort?": "Delete?",
+  "Ska göras om": "Needs redoing",
+  "Återställ {title}": "Restore {title}",
+  "Återställ?": "Restore?",
+  "{n} att göra om": "{n} to redo",
+  "Resten är klart. Börja med det som ska göras om.": "Everything else is done. Start with what needs redoing.",
+  "Godkänn {title}": "Approve {title}",
+  "{title} är godkänd": "{title} is approved",
+  "Ångra": "Undo",
 };

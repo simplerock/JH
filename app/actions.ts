@@ -248,6 +248,27 @@ export async function redoCompletion(form: FormData) {
   refresh();
 }
 
+/**
+ * Tar bort en avbockning så att sysslan blir ogjord igen. Barnet ångrar sitt eget inskick som väntar,
+ * föräldrar återställer vad som helst. RLS avgör: ett barn kan aldrig ta bort något som är godkänt.
+ */
+export async function undoCompletion(form: FormData) {
+  const { supabase, family } = await getSession();
+  const { data } = await supabase.from("task_completions").delete().eq("id", str(form, "id")).select("photo_path");
+  const photo = data?.[0]?.photo_path as string | null | undefined;
+  // Raden gick bara att ta bort om RLS tillät det, så fotot som hörde till den får också försvinna.
+  // Barn får inte radera filer själva, därför används serverns nyckel när den finns.
+  if (photo?.startsWith(`${family.id}/`)) {
+    try {
+      const storage = process.env.SUPABASE_SERVICE_ROLE_KEY ? createServiceClient().storage : supabase.storage;
+      await storage.from("bevis").remove([photo]);
+    } catch {
+      // Ett kvarlämnat foto är ofarligt. Avbockningen är ändå borta.
+    }
+  }
+  refresh();
+}
+
 export async function saveLevel(_: FormState, form: FormData): Promise<FormState> {
   const { supabase } = await requireParent();
   const min = optNum(form, "min_points");
