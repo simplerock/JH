@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase/config";
+import { isConfigured, supabaseAnonKey, supabaseJwks, supabaseUrl } from "@/lib/supabase/config";
 
 const PUBLIC = ["/login", "/setup"];
 
@@ -24,9 +24,10 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // getClaims kontrollerar inloggningen lokalt mot projektets publika nyckel (cachad i tio minuter)
-  // i stället för att fråga Supabase vid varje sidvisning. Utgångna sessioner förnyas här.
-  const { data } = await supabase.auth.getClaims();
+  // getClaims kontrollerar inloggningen lokalt mot projektets publika nyckel i stället för att fråga
+  // Supabase vid varje sidvisning. Nyckeln finns i koden, så inte ens en kall start behöver hämta den.
+  // Utgångna sessioner förnyas här.
+  const { data } = await supabase.auth.getClaims(undefined, { keys: supabaseJwks });
   const user = data?.claims?.sub ? data.claims : null;
   if (!user && !PUBLIC.includes(path) && !path.startsWith("/api/kalender/")) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -38,5 +39,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|sw.js|.*\\.(?:png|svg|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest|sw.js|offline.html|.*\\.(?:png|svg|ico)$).*)"],
 };

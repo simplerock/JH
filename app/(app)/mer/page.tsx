@@ -5,7 +5,7 @@ import { Section } from "@/components/Section";
 import { monthRange, today } from "@/lib/dates";
 import { getI18n } from "@/lib/i18n/server";
 import { formatNumber } from "@/lib/format";
-import { loadEvents, loadFamilyData } from "@/lib/queries";
+import { loadFamilyData } from "@/lib/queries";
 import { kidWeek } from "@/lib/score";
 import { getUser } from "@/lib/session";
 
@@ -26,9 +26,8 @@ export default async function MorePage() {
   const { supabase } = await getUser();
   const [from, to] = monthRange(d.slice(0, 7));
   // Allt hämtas samtidigt. Budgeten visas bara för vuxna, och RLS ger barn tomma svar.
-  const [{ members, family, isParent, tasks, completions, weekFrom, adjustments }, events, { t, range }, cats, tx] = await Promise.all([
-    loadFamilyData(),
-    loadEvents(d),
+  const [{ members, family, isParent, tasks, completions, weekFrom, adjustments, events }, { t, range }, cats, tx] = await Promise.all([
+    loadFamilyData({ eventsFrom: d }),
     getI18n(),
     supabase.from("budget_categories").select("monthly_limit"),
     supabase.from("transactions").select("amount").gte("occurred_on", from).lte("occurred_on", to),

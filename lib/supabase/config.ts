@@ -30,6 +30,24 @@ function problems(): string[] {
   return out;
 }
 
+// Home Hubs publika nyckel för inloggningar (ES256). Med den kontrolleras inloggningen utan att först
+// hämta nyckeln från Supabase, vilket annars kostar upp till en sekund varje gång servern startar kallt.
+// Byts nyckeln i Supabase hittas den nya inte här och hämtas då som vanligt.
+const HOME_HUB_JWKS = [
+  {
+    alg: "ES256",
+    crv: "P-256",
+    ext: true,
+    key_ops: ["verify"],
+    kid: "859d2139-30a6-4376-9ef1-6aebe797f518",
+    kty: "EC",
+    use: "sig",
+    x: "CNnskkU5mQ_bXAKEssTXJ8v4DrGXSUtFrjb55iafVYQ",
+    y: "LV6Ohr5uTrMZ3NfErJpoYk_oIX2wpGFEFiohgD8SUKg",
+  },
+];
+export const supabaseJwks = supabaseUrl === HOME_HUB_URL ? HOME_HUB_JWKS : [];
+
 export const configProblems = problems();
 export const isConfigured = configProblems.length === 0;
 
