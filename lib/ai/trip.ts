@@ -1,12 +1,20 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import type Anthropic from "@anthropic-ai/sdk";
 import { FoundEvents, type FoundEvent } from "@/lib/events-import";
 import { TripExtraction } from "@/lib/trip";
 
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 export type TripFile = { name: string; mime: string; data: Buffer };
+
+/** SDK:n laddas först när en förälder läser in ett dokument, så att vanliga sidor startar snabbare. */
+async function sdk() {
+  const [{ default: Client }, { betaZodOutputFormat }] = await Promise.all([
+    import("@anthropic-ai/sdk"),
+    import("@anthropic-ai/sdk/helpers/beta/zod"),
+  ]);
+  return { client: new Client(), betaZodOutputFormat };
+}
 
 const IMAGE = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
@@ -39,7 +47,7 @@ Regler:
 
 /** Läser resedokument med Claude och returnerar ett utkast som en förälder granskar innan det sparas. */
 export async function extractTrip(files: TripFile[]): Promise<TripExtraction> {
-  const client = new Anthropic();
+  const { client, betaZodOutputFormat } = await sdk();
   const response = await client.beta.messages.parse({
     model: "claude-opus-5-5",
     max_tokens: 16000,
@@ -64,7 +72,7 @@ Regler:
 
 /** Läser en lapp, ett schema eller ett mejl och returnerar händelser att granska. */
 export async function extractEvents(files: TripFile[], text: string, today: string): Promise<FoundEvent[]> {
-  const client = new Anthropic();
+  const { client, betaZodOutputFormat } = await sdk();
   const content: Anthropic.Beta.BetaContentBlockParam[] = [...toContentBlocks(files)];
   if (text.trim()) content.push({ type: "text", text: `Inklistrad text:\n\n${text}` });
   content.push({ type: "text", text: EVENTS_INSTRUCTIONS(today) });

@@ -39,6 +39,7 @@ export const en: Record<string, string> = {
   "Mer": "More",
   "{n} att godkänna": "{n} to approve",
   "Lägg till": "Add",
+  "Laddar": "Loading",
   "senast {date}": "by {date}",
   "{title} väntar på godkännande": "{title} is waiting for approval",
   "Klar med {title}": "Done with {title}",

@@ -2,6 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { Check, Ellipsis, Home, Hammer, Target } from "lucide-react";
 import { useI18n } from "./I18nProvider";
 
@@ -13,7 +14,8 @@ const items = [
   { href: "/mer", label: "Mer", icon: Ellipsis, match: ["/mer", "/kalender", "/budget", "/familj", "/poang", "/vecka", "/barn"] },
 ];
 
-export function BottomNav({ badge }: { badge?: { count: number; label: string } }) {
+/** homeBadge: siffran på Hem. Den kommer från servern när den är klar, så menyn kan visas direkt. */
+export function BottomNav({ homeBadge }: { homeBadge?: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   return (
@@ -32,11 +34,7 @@ export function BottomNav({ badge }: { badge?: { count: number; label: string } 
                 <Pending />
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
                 {t(label)}
-                {href === "/" && badge && badge.count > 0 && (
-                  <span className="absolute left-1/2 top-1.5 ml-2 grid h-4 min-w-4 place-items-center rounded-full bg-wait px-1 text-[10px] font-bold text-card" aria-label={badge.label}>
-                    {badge.count}
-                  </span>
-                )}
+                {href === "/" && homeBadge}
               </Link>
             </li>
           );

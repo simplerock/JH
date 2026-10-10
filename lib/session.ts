@@ -1,16 +1,17 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { supabaseJwks } from "./supabase/config";
 import { createClient } from "./supabase/server";
 import type { Family, Profile } from "./types";
 
 /**
  * Inloggad användare utan krav på familj. Inloggningen kontrolleras lokalt med getClaims
- * (signaturen verifieras mot projektets publika nyckel), så det kostar ingen rundresa till Supabase.
+ * (signaturen verifieras mot projektets publika nyckel i lib/supabase/config.ts), så det kostar ingen rundresa till Supabase.
  */
 export const getUser = cache(async () => {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims(undefined, { keys: supabaseJwks });
   const id = data?.claims?.sub;
   if (!id) redirect("/login");
   return { supabase, user: { id } };

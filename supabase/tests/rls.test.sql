@@ -231,8 +231,30 @@ select tests.expect_error(format($$insert into public.tasks (family_id, title) v
 select tests.expect_error(format($$insert into public.task_completions (task_id, period) values (%L, 'x')$$, :'task_child'), 'familj B bockar av A:s syssla');
 reset role;
 
+-- family_data ger samma rader som tabellerna, och RLS gäller precis som vid direkt läsning
+create function tests.fd() returns json language sql as $$
+  select public.family_data(array[]::text[], now() - interval '14 days', now() - interval '60 days', '2000-01-01')
+$$;
+grant execute on function tests.fd() to authenticated, anon;
+select set_config('request.jwt.claim.sub', :'cA', false);
+set role authenticated;
+select tests.expect_count($$select 1 where (select count(*) from public.tasks) > 0 and json_array_length(tests.fd()->'tasks') = (select count(*) from public.tasks)$$, 1, 'barnet får familjens sysslor via family_data');
+select tests.expect_count($$select 1 where json_array_length(tests.fd()->'members') = (select count(*) from public.profiles)$$, 1, 'barnet får familjen via family_data');
+select tests.expect_count($$select 1 where json_array_length(tests.fd()->'completions') = (select count(*) from public.task_completions)$$, 1, 'barnet får avbockningarna via family_data');
+select tests.expect_count($$select 1 where json_array_length(tests.fd()->'events') = (select count(*) from public.events)$$, 1, 'barnet får händelserna via family_data');
+select tests.expect_count($$select 1 where json_typeof(public.family_data(array[]::text[], now(), now())->'events') = 'null'$$, 1, 'family_data utan datum hämtar inga händelser');
+reset role;
+select set_config('request.jwt.claim.sub', :'pB', false);
+set role authenticated;
+select tests.expect_count($$select json_array_elements(tests.fd()->'tasks')$$, 0, 'familj B får inte A:s sysslor via family_data');
+select tests.expect_count($$select json_array_elements(tests.fd()->'members')$$, 1, 'familj B får bara sig själv via family_data');
+select tests.expect_count($$select json_array_elements(tests.fd()->'completions')$$, 0, 'familj B får inte A:s avbockningar via family_data');
+select tests.expect_count($$select json_array_elements(tests.fd()->'events')$$, 0, 'familj B får inte A:s händelser via family_data');
+reset role;
+
 -- Utloggad
 set role anon;
+select tests.expect_error($$select public.family_data(array[]::text[], now(), now())$$, 'anonym hämtar familjedata');
 select tests.expect_error($$select public.create_family('X', 'Y')$$, 'anonym skapar familj');
 select tests.expect_error('select * from public.families', 'anonym läser familjer');
 reset role;
